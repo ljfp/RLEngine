@@ -2,6 +2,7 @@
 
 #include <SDL2/SDL.h>
 #include "../ECS/ECS.hpp"
+#include <entt/entt.hpp>
 #include "../AssetManager/AssetManager.hpp"
 #include "../EventBus/EventBus.hpp"
 
@@ -33,8 +34,9 @@ private:
 	SDL_Rect Camera;
 	bool IsRunning;
 	bool IsDebug;
-	Uint64 MillisecondsPreviousFrame = 0;
+	uint64_t MillisecondsPreviousFrame = 0;
 
+	entt::registry EnttRegistry;
 	std::unique_ptr<Registry> GameRegistry;
 	std::unique_ptr<AssetManager> GameAssetManager;
 	std::unique_ptr<EventBus> GameEventBus;

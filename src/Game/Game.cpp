@@ -1,5 +1,6 @@
 #include "Game.hpp"
 #include "../ECS/ECS.hpp"
+#include <entt/entt.hpp>
 #include "../Components/AnimationComponent.hpp"
 #include "../Components/BoxColliderComponent.hpp"
 #include "../Components/CameraFollowComponent.hpp"
