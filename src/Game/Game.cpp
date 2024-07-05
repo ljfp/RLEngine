@@ -1,6 +1,5 @@
 #include "Game.hpp"
 #include "../ECS/ECS.hpp"
-#include <entt/entt.hpp>
 #include "../Components/AnimationComponent.hpp"
 #include "../Components/BoxColliderComponent.hpp"
 #include "../Components/CameraFollowComponent.hpp"
@@ -18,6 +17,7 @@
 #include "../Systems/KeyboardControlSystem.hpp"
 #include "../Systems/MovementSystem.hpp"
 #include "../Systems/RenderColliderSystem.hpp"
+#include "../Systems/RenderHealthBarSystem.hpp"
 #include "../Systems/RenderTextSystem.hpp"
 #include "../Systems/RenderSystem.hpp"
 #include "../Systems/ProjectileEmitterSystem.hpp"
@@ -28,6 +28,9 @@
 #include <glm/glm.hpp>
 #include <iostream>
 #include <fstream>
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_sdl2.h>
+#include <imgui/imgui_impl_sdlrenderer2.h>
 // TODO: remove this when gcc has stable support for C++23
 //#include <stdfloat>
 
@@ -86,6 +89,12 @@ Game::Game()
 	// TODO: set this flag to true when the user plays the game.
 	SDL_SetWindowFullscreen(Window, SDL_WINDOW_FULLSCREEN);
 
+	// Initialize Dear ImGui
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui_ImplSDL2_InitForSDLRenderer(Window, Renderer);
+	ImGui_ImplSDLRenderer2_Init(Renderer);
+
 	GameRegistry = std::make_unique<Registry>();
 	GameAssetManager = std::make_unique<AssetManager>();
 	GameEventBus = std::make_unique<EventBus>();
@@ -112,6 +121,10 @@ Game::~Game()
 	{
 		SDL_DestroyWindow(Window);
 	}
+
+	ImGui_ImplSDLRenderer2_Shutdown();
+	ImGui_ImplSDL2_Shutdown();
+	ImGui::DestroyContext();
 
 	SDL_Quit();
 	spdlog::info("Game is closing.");
@@ -142,6 +155,7 @@ void Game::LoadLevel(uint8_t LevelNumber)
 	GameRegistry->AddSystem<ProjectileEmitterSystem>();
 	GameRegistry->AddSystem<ProjectileLifecycleSystem>();
 	GameRegistry->AddSystem<RenderTextSystem>();
+	GameRegistry->AddSystem<RenderHealthBarSystem>();
 
 	// Add assets to the asset store
 	GameAssetManager->AddTexture(Renderer, "tank-image", "./assets/images/tank-panther-right.png");
@@ -150,7 +164,9 @@ void Game::LoadLevel(uint8_t LevelNumber)
 	GameAssetManager->AddTexture(Renderer, "radar-image", "./assets/images/radar.png");
 	GameAssetManager->AddTexture(Renderer, "jungle-tilemap", "./assets/tilemaps/jungle.png");
 	GameAssetManager->AddTexture(Renderer, "bullet-image", "./assets/images/bullet.png");
-	GameAssetManager->AddFont("charriot-font", "./assets/fonts/charriot.ttf", 16);
+	GameAssetManager->AddFont("charriot-font-20", "./assets/fonts/charriot.ttf", 20);
+	GameAssetManager->AddFont("pico8-font-5", "./assets/fonts/pico8.ttf", 5);
+	GameAssetManager->AddFont("pico8-font-10", "./assets/fonts/pico8.ttf", 10);
 
 	// Load the tilemap
 	uint16_t TileSize = 32;
@@ -189,7 +205,7 @@ void Game::LoadLevel(uint8_t LevelNumber)
 	// Add entities to the game
 	Entity Chopper = GameRegistry->CreateEntity();
 	Chopper.Tag("Player");
-	Chopper.AddComponent<TransformComponent>(glm::vec2(30.0, 300.0), glm::vec2(3.0, 3.0), 0.0);
+	Chopper.AddComponent<TransformComponent>(glm::vec2(30.0, 300.0), glm::vec2(2.0, 2.0), 0.0);
 	Chopper.AddComponent<RigidBodyComponent>(glm::vec2(0.0, 0.0));
 	Chopper.AddComponent<SpriteComponent>("chopper-image", 1, 32, 32);
 	Chopper.AddComponent<AnimationComponent>(2, 10, true);
@@ -207,7 +223,7 @@ void Game::LoadLevel(uint8_t LevelNumber)
 
 	Entity Tank = GameRegistry->CreateEntity();
 	Tank.Group("Enemies");
-	Tank.AddComponent<TransformComponent>(glm::vec2(210.0, 10.0), glm::vec2(3.0, 3.0), 0.0);
+	Tank.AddComponent<TransformComponent>(glm::vec2(640.0, 576.0), glm::vec2(2.0, 2.0), 0.0);
 	Tank.AddComponent<RigidBodyComponent>(glm::vec2(0.0, 0.0));
 	Tank.AddComponent<SpriteComponent>("tank-image", 1, 32, 32);
 	Tank.AddComponent<BoxColliderComponent>(32, 32);
@@ -216,7 +232,7 @@ void Game::LoadLevel(uint8_t LevelNumber)
 
 	Entity Truck = GameRegistry->CreateEntity();
 	Truck.Group("Enemies");
-	Truck.AddComponent<TransformComponent>(glm::vec2(10.0, 10.0), glm::vec2(3.0, 3.0), 0.0);
+	Truck.AddComponent<TransformComponent>(glm::vec2(160.0, 768.0), glm::vec2(2.0, 2.0), 0.0);
 	Truck.AddComponent<RigidBodyComponent>(glm::vec2(0.0, 0.0));
 	Truck.AddComponent<SpriteComponent>("truck-image", 1, 32, 32);
 	Truck.AddComponent<BoxColliderComponent>(32, 32);
@@ -224,7 +240,7 @@ void Game::LoadLevel(uint8_t LevelNumber)
 	Truck.AddComponent<HealthComponent>(100);
 
 	Entity Label = GameRegistry->CreateEntity();
-	Label.AddComponent<TextLabelComponent>(glm::vec2(100.0, 100.0), "Hello World", "charriot-font", SDL_Color{ 255, 255, 255 }, true);
+	Label.AddComponent<TextLabelComponent>(glm::vec2(100.0, 100.0), "Hello World", "charriot-font-20", SDL_Color{ 255, 255, 255 }, true);
 }
 
 void Game::Setup()
@@ -237,6 +253,18 @@ void Game::ProcessInput()
 	SDL_Event Event;
 	while (SDL_PollEvent(&Event))
 	{
+		// Handle ImGui events
+		ImGui_ImplSDL2_ProcessEvent(&Event);
+		ImGuiIO& DebugIO = ImGui::GetIO();
+
+		int MouseX, MouseY;
+		const int MouseButtons = SDL_GetMouseState(&MouseX, &MouseY);
+
+		DebugIO.MousePos = ImVec2(MouseX, MouseY);
+		DebugIO.MouseDown[0] = MouseButtons & SDL_BUTTON(SDL_BUTTON_LEFT);
+		DebugIO.MouseDown[1] = MouseButtons & SDL_BUTTON(SDL_BUTTON_RIGHT);
+
+		// Handle core SDL events
 		switch (Event.type)
 		{
 		case SDL_QUIT:
@@ -299,13 +327,24 @@ void Game::Render()
 	SDL_SetRenderDrawColor(Renderer, 21, 21, 21, 255);
 	SDL_RenderClear(Renderer);
 
+	// Render Dear ImGui frame
+	ImGui_ImplSDLRenderer2_NewFrame();
+	ImGui_ImplSDL2_NewFrame();
+	ImGui::NewFrame();
+
 	// Invoke all the systems that need to render
 	GameRegistry->GetSystem<RenderSystem>().Update(Renderer, GameAssetManager, Camera);
 	GameRegistry->GetSystem<RenderTextSystem>().Update(Renderer, GameAssetManager, Camera);
+	GameRegistry->GetSystem<RenderHealthBarSystem>().Update(Renderer, GameAssetManager, Camera);
 	if (IsDebug)
 	{
+		ImGui::ShowDemoWindow();
 		GameRegistry->GetSystem<RenderColliderSystem>().Update(Renderer, Camera);
 	}
+
+	// Present new Dear ImGui frame
+	ImGui::Render();
+	ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), Renderer);
 
 	SDL_RenderPresent(Renderer);
 }

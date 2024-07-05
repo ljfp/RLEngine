@@ -2,7 +2,6 @@
 
 #include <SDL2/SDL.h>
 #include "../ECS/ECS.hpp"
-#include <entt/entt.hpp>
 #include "../AssetManager/AssetManager.hpp"
 #include "../EventBus/EventBus.hpp"
 
@@ -36,7 +35,6 @@ private:
 	bool IsDebug;
 	uint64_t MillisecondsPreviousFrame = 0;
 
-	entt::registry EnttRegistry;
 	std::unique_ptr<Registry> GameRegistry;
 	std::unique_ptr<AssetManager> GameAssetManager;
 	std::unique_ptr<EventBus> GameEventBus;

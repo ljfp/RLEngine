@@ -8,7 +8,8 @@ INCLUDE_FLAGS = -I"./third_party/"
 SRC = ./src/*.cpp \
 	./src/AssetManager/*.cpp \
 	./src/ECS/*.cpp \
-	./src/Game/*.cpp
+	./src/Game/*.cpp \
+	./third_party/imgui/*.cpp
 BIN = bin/
 EXECUTABLE = $(BIN)RoguelikeEngine
 
