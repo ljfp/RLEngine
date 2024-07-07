@@ -23,6 +23,20 @@ public:
 
 			transform.Position.x += rigidBody.Velocity.x * DeltaTime;
 			transform.Position.y += rigidBody.Velocity.y * DeltaTime;
+
+			bool IsEntityOutsideOfBounds =
+			(
+				transform.Position.x < 0 ||
+				transform.Position.x > Game::MapWidth ||
+				transform.Position.y < 0 ||
+				transform.Position.y > Game::MapHeight
+			);
+
+			// Kill all entites that move outside of the map boundaries.
+			if (IsEntityOutsideOfBounds && !entity.HasTag("Player"))
+			{
+				entity.Kill();
+			}
 		}
 	}
 };
