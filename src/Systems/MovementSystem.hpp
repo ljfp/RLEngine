@@ -31,6 +31,19 @@ public:
 			transform.Position.x += rigidBody.Velocity.x * DeltaTime;
 			transform.Position.y += rigidBody.Velocity.y * DeltaTime;
 
+			// Prevent the player from moving outside the map.
+			if (entity.HasTag("Player"))
+			{
+				uint8_t PaddingLeft = 10;
+				uint8_t PaddingTop = 10;
+				uint8_t PaddingRight = 50;
+				uint8_t PaddingBottom = 50;
+				transform.Position.x = transform.Position.x < PaddingLeft ? PaddingLeft : transform.Position.x;
+				transform.Position.x = transform.Position.x > Game::MapWidth - PaddingRight ? Game::MapWidth - PaddingRight : transform.Position.x;
+				transform.Position.y = transform.Position.y < PaddingTop ? PaddingTop : transform.Position.y;
+				transform.Position.y = transform.Position.y > Game::MapHeight - PaddingBottom ? Game::MapHeight - PaddingBottom : transform.Position.y;
+			}
+
 			bool IsEntityOutsideOfBounds =
 			(
 				transform.Position.x < 0 ||
