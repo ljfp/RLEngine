@@ -67,7 +67,7 @@ public:
 				&DestinationRectangle,
 				Transform.Rotation,
 				NULL,
-				SDL_FLIP_NONE
+				Sprite.Flip
 			);
 		}
 	}

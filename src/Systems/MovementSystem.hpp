@@ -1,9 +1,11 @@
 #pragma once
 
 #include "../ECS/ECS.hpp"
-#include "../Components/TransformComponent.hpp"
 #include "../Components/RigidBodyComponent.hpp"
-
+#include "../Components/SpriteComponent.hpp"
+#include "../Components/TransformComponent.hpp"
+#include "../EventBus/EventBus.hpp"
+#include "../Events/CollisionEvent.hpp"
 
 class MovementSystem : public System
 {
@@ -12,6 +14,11 @@ public:
 	{
 		RequireComponent<TransformComponent>();
 		RequireComponent<RigidBodyComponent>();
+	}
+
+	void SubscribeToEvents(const std::unique_ptr<EventBus>& EventBus)
+	{
+		EventBus->SubscribeToEvent<CollisionEvent>(this, &MovementSystem::OnCollision);
 	}
 
 	void Update(double DeltaTime)
@@ -37,6 +44,45 @@ public:
 			{
 				entity.Kill();
 			}
+		}
+	}
+
+	void OnCollision(CollisionEvent& Event)
+	{
+		Entity EntityA = Event.A;
+		Entity EntityB = Event.B;
+		spdlog::info("The damage system received an event collision between entities {} and {}", EntityA.GetID(), EntityB.GetID());
+
+		if (EntityA.BelongsToGroup("Enemies") && EntityB.BelongsToGroup("Obstacles"))
+		{
+			OnEnemyHitsObstacle(EntityA, EntityB);
+		}
+
+		if (EntityA.BelongsToGroup("Obstacles") && EntityB.BelongsToGroup("Enemies"))
+		{
+			OnEnemyHitsObstacle(EntityB, EntityA);
+		}
+	}
+
+	void OnEnemyHitsObstacle(Entity Enemy, Entity Obstacle)
+	{
+		if (Enemy.HasComponent<RigidBodyComponent>() && Enemy.HasComponent<SpriteComponent>())
+		{
+			auto& RigidBody = Enemy.GetComponent<RigidBodyComponent>();
+			auto& Sprite = Enemy.GetComponent<SpriteComponent>();
+
+			if (RigidBody.Velocity.x != 0)
+			{
+				RigidBody.Velocity.x *= -1;
+				Sprite.Flip = (Sprite.Flip == SDL_FLIP_NONE) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
+			}
+
+			if (RigidBody.Velocity.y != 0)
+			{
+				RigidBody.Velocity.y *= -1;
+				Sprite.Flip = (Sprite.Flip == SDL_FLIP_NONE) ? SDL_FLIP_VERTICAL : SDL_FLIP_NONE;
+			}
+
 		}
 	}
 };

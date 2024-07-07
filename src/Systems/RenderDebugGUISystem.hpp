@@ -96,7 +96,7 @@ public:
 				Enemy.Group("Enemies");
 				Enemy.AddComponent<TransformComponent>(glm::vec2(PositionX, PositionY), glm::vec2(ScaleX, ScaleY), glm::degrees(Rotation));
 				Enemy.AddComponent<RigidBodyComponent>(glm::vec2(VelocityX, VelocityY));
-				Enemy.AddComponent<SpriteComponent>(Sprites[SelectedSpriteIndex], 1, 32, 32);
+				Enemy.AddComponent<SpriteComponent>(Sprites[SelectedSpriteIndex], 32, 32, 1);
 				Enemy.AddComponent<BoxColliderComponent>(25, 20, glm::vec2(5, 5));
 				double ProjectileVelocityX = ProjectileSpeed * cos(ProjectileAngle);
 				double ProjectileVelocityY = ProjectileSpeed * sin(ProjectileAngle);

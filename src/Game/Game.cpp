@@ -166,6 +166,7 @@ void Game::LoadLevel(uint8_t LevelNumber)
 	GameAssetManager->AddTexture(Renderer, "radar-image", "./assets/images/radar.png");
 	GameAssetManager->AddTexture(Renderer, "jungle-tilemap", "./assets/tilemaps/jungle.png");
 	GameAssetManager->AddTexture(Renderer, "bullet-image", "./assets/images/bullet.png");
+	GameAssetManager->AddTexture(Renderer, "tree-image", "./assets/images/tree.png");
 	GameAssetManager->AddFont("charriot-font-20", "./assets/fonts/charriot.ttf", 20);
 	GameAssetManager->AddFont("pico8-font-5", "./assets/fonts/pico8.ttf", 5);
 	GameAssetManager->AddFont("pico8-font-10", "./assets/fonts/pico8.ttf", 10);
@@ -196,7 +197,7 @@ void Game::LoadLevel(uint8_t LevelNumber)
 			Entity Tile = GameRegistry->CreateEntity();
 			Tile.Group("Tiles");
 			Tile.AddComponent<TransformComponent>(glm::vec2(x * (TileScale * TileSize), y * (TileScale * TileSize)), glm::vec2(TileScale, TileScale), 0.0);
-			Tile.AddComponent<SpriteComponent>("jungle-tilemap", 0, TileSize, TileSize, false, SourceRectangleX, SourceRectangleY);
+			Tile.AddComponent<SpriteComponent>("jungle-tilemap", TileSize, TileSize, 0, false, SourceRectangleX, SourceRectangleY);
 		}
 	}
 
@@ -209,7 +210,7 @@ void Game::LoadLevel(uint8_t LevelNumber)
 	Chopper.Tag("Player");
 	Chopper.AddComponent<TransformComponent>(glm::vec2(30.0, 300.0), glm::vec2(2.0, 2.0), 0.0);
 	Chopper.AddComponent<RigidBodyComponent>(glm::vec2(0.0, 0.0));
-	Chopper.AddComponent<SpriteComponent>("chopper-image", 1, 32, 32);
+	Chopper.AddComponent<SpriteComponent>("chopper-image", 32, 32, 1);
 	Chopper.AddComponent<AnimationComponent>(2, 10, true);
 	Chopper.AddComponent<BoxColliderComponent>(32, 32);
 	Chopper.AddComponent<ProjectileEmitterComponent>(glm::vec2(150.0, 150.0), 0, 10000, 10, true);
@@ -220,14 +221,14 @@ void Game::LoadLevel(uint8_t LevelNumber)
 	Entity Radar = GameRegistry->CreateEntity();
 	Radar.AddComponent<TransformComponent>(glm::vec2(WindowWidth - 192, 10.0), glm::vec2(2.0, 2.0), 0.0);
 	Radar.AddComponent<RigidBodyComponent>(glm::vec2(0.0, 0.0));
-	Radar.AddComponent<SpriteComponent>("radar-image", 2, 64, 64, true);
+	Radar.AddComponent<SpriteComponent>("radar-image", 64, 64, 1, true);
 	Radar.AddComponent<AnimationComponent>(8, 5, true);
 
 	Entity Tank = GameRegistry->CreateEntity();
 	Tank.Group("Enemies");
-	Tank.AddComponent<TransformComponent>(glm::vec2(640.0, 576.0), glm::vec2(2.0, 2.0), 0.0);
-	Tank.AddComponent<RigidBodyComponent>(glm::vec2(0.0, 0.0));
-	Tank.AddComponent<SpriteComponent>("tank-image", 1, 32, 32);
+	Tank.AddComponent<TransformComponent>(glm::vec2(640.0, 740.0), glm::vec2(2.0, 2.0), 0.0);
+	Tank.AddComponent<RigidBodyComponent>(glm::vec2(100.0, 0.0));
+	Tank.AddComponent<SpriteComponent>("tank-image", 32, 32, 1);
 	Tank.AddComponent<BoxColliderComponent>(32, 32);
 	Tank.AddComponent<ProjectileEmitterComponent>(glm::vec2(300.0, 0.0), 5000, 2500, 10, false);
 	Tank.AddComponent<HealthComponent>(100);
@@ -236,10 +237,22 @@ void Game::LoadLevel(uint8_t LevelNumber)
 	Truck.Group("Enemies");
 	Truck.AddComponent<TransformComponent>(glm::vec2(160.0, 768.0), glm::vec2(2.0, 2.0), 0.0);
 	Truck.AddComponent<RigidBodyComponent>(glm::vec2(0.0, 0.0));
-	Truck.AddComponent<SpriteComponent>("truck-image", 1, 32, 32);
+	Truck.AddComponent<SpriteComponent>("truck-image", 32, 32, 1);
 	Truck.AddComponent<BoxColliderComponent>(32, 32);
 	Truck.AddComponent<ProjectileEmitterComponent>(glm::vec2(0.0, 300), 2000, 5000, 10, false);
 	Truck.AddComponent<HealthComponent>(100);
+
+	Entity TreeA = GameRegistry->CreateEntity();
+	TreeA.Group("Obstacles");
+	TreeA.AddComponent<TransformComponent>(glm::vec2(840.0, 740.0), glm::vec2(2.0, 2.0), 0.0);
+	TreeA.AddComponent<SpriteComponent>("tree-image", 16, 32, 2);
+	TreeA.AddComponent<BoxColliderComponent>(16, 32);
+
+	Entity TreeB = GameRegistry->CreateEntity();
+	TreeB.Group("Obstacles");
+	TreeB.AddComponent<TransformComponent>(glm::vec2(440.0, 740.0), glm::vec2(2.0, 2.0), 0.0);
+	TreeB.AddComponent<SpriteComponent>("tree-image", 16, 32, 2);
+	TreeB.AddComponent<BoxColliderComponent>(16, 32);
 
 	Entity Label = GameRegistry->CreateEntity();
 	Label.AddComponent<TextLabelComponent>(glm::vec2(100.0, 100.0), "Hello World", "charriot-font-20", SDL_Color{ 255, 255, 255 }, true);
@@ -310,6 +323,7 @@ void Game::Update()
 	// Perform the subscription of the events for all systems
 	GameRegistry->GetSystem<DamageSystem>().SubscribeToEvents(GameEventBus);
 	GameRegistry->GetSystem<KeyboardControlSystem>().SubscribeToEvents(GameEventBus);
+	GameRegistry->GetSystem<MovementSystem>().SubscribeToEvents(GameEventBus);
 	GameRegistry->GetSystem<ProjectileEmitterSystem>().SubscribeToEvents(GameEventBus);
 
 	// Invoke all systems that need to update
