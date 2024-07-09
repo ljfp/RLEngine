@@ -44,12 +44,13 @@ public:
 				transform.Position.y = transform.Position.y > Game::MapHeight - PaddingBottom ? Game::MapHeight - PaddingBottom : transform.Position.y;
 			}
 
+			uint8_t Padding = 100; // In pixels
 			bool IsEntityOutsideOfBounds =
 			(
-				transform.Position.x < 0 ||
-				transform.Position.x > Game::MapWidth ||
-				transform.Position.y < 0 ||
-				transform.Position.y > Game::MapHeight
+				transform.Position.x < -Padding ||
+				transform.Position.x > Game::MapWidth + Padding ||
+				transform.Position.y < -Padding ||
+				transform.Position.y > Game::MapHeight + Padding
 			);
 
 			// Kill all entites that move outside of the map boundaries.
