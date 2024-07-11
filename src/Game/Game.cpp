@@ -16,6 +16,7 @@
 #include "../Systems/ProjectileLifecycleSystem.hpp"
 #include "../Systems/ScriptSystem.hpp"
 
+#include <algorithm>
 #include <SDL2/SDL_image.h>
 #include <spdlog/spdlog.h>
 #include <glm/glm.hpp>
@@ -30,6 +31,8 @@ uint16_t Game::WindowWidth;
 uint16_t Game::WindowHeight;
 uint16_t Game::MapWidth;
 uint16_t Game::MapHeight;
+const uint16_t MaxWidth = 1920;
+const uint16_t MaxHeight = 1080;
 
 Game::Game()
 {
@@ -64,7 +67,7 @@ void Game::Initialize()
 	SDL_GetCurrentDisplayMode(0, &DisplayMode);
 	if (DisplayMode.w > 0)
 	{
-		WindowWidth = DisplayMode.w; // Implicit conversion from int to unsigned short
+		WindowWidth = std::min(static_cast<uint16_t>(DisplayMode.w), MaxWidth);
 	}
 	else
 	{
@@ -73,14 +76,14 @@ void Game::Initialize()
 
 	if (DisplayMode.h > 0)
 	{
-		WindowHeight = DisplayMode.h; // Implicit conversion from int to unsigned short
+		WindowHeight = std::min(static_cast<uint16_t>(DisplayMode.h), MaxHeight);
 	}
 	else
 	{
-		spdlog::warn("There's a proble getting display height (0 or negative value).");
+		spdlog::warn("There's a problem getting display height (0 or negative value).");
 	}
 
-	Window = SDL_CreateWindow("RoguelikeEngine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WindowWidth, WindowHeight, SDL_WINDOW_BORDERLESS);
+	Window = SDL_CreateWindow("RoguelikeEngine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WindowWidth, WindowHeight, SDL_WINDOW_RESIZABLE);
 	if (!Window)
 	{
 		spdlog::error("Error creating SDL window.");
@@ -103,7 +106,7 @@ void Game::Initialize()
 	// Initialize the camera with the entire screen area
 	Camera = { 0, 0, WindowWidth, WindowHeight };
 
-	SDL_SetWindowFullscreen(Window, SDL_WINDOW_FULLSCREEN);
+	SDL_SetWindowFullscreen(Window, 0);
 	IsRunning = true;
 }
 

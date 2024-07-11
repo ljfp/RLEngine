@@ -2,6 +2,7 @@
 # Makefile variables
 ###########################################################
 CXX = g++
+# try with -Wall -Wextra -Werror -Wpedantic
 COMPILER_FLAGS = -Wall -std=c++2b -O2 -ggdb
 LINKER_FLAGS = -L"./lib/" -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -llua54
 INCLUDE_FLAGS = -I"./third_party/"

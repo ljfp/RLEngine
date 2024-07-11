@@ -1,5 +1,7 @@
 .vs/
 .vscode/
 bin/
+build/
 cachegrind.out.*
 imgui.ini
+RLEngine.log

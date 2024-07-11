@@ -69,7 +69,7 @@ void LevelLoader::LoadLevel(sol::state& LuaState, const std::unique_ptr<Registry
 		if (AssetType == "font")
 		{
 			AssetManager->AddFont(Asset["id"], Asset["file"], Asset["font_size"]);
-			spdlog::info("Font with AssetID {} and size {} added to the AssetManager", std::string(Asset["id"]), std::string(Asset["font_size"]));
+			spdlog::info("Font with AssetID {} and size {} added to the AssetManager", std::string(Asset["id"]), uint8_t(Asset["font_size"]));
 		}
 		i++;
 	}
@@ -83,7 +83,6 @@ void LevelLoader::LoadLevel(sol::state& LuaState, const std::unique_ptr<Registry
 	uint16_t TileSize = Tilemap["tile_size"];
 	double MapScale = Tilemap["scale"];
 	std::fstream TilemapFile;
-	std::cout << "PATH HERE:" << MapFilePath << std::endl;
 	TilemapFile.open(MapFilePath, std::ios::in);
 	for (uint16_t y = 0; y < MapNumRows; y++)
 	{
