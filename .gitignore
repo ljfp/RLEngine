@@ -1,0 +1,5 @@
+.vs/
+.vscode/
+bin/
+cachegrind.out.*
+imgui.ini
