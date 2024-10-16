@@ -66,7 +66,7 @@ public:
 					AProjectile.Group("Projectiles");
 					AProjectile.AddComponent<TransformComponent>(ProjectilePosition, glm::vec2(1.0, 1.0), 0.0);
 					AProjectile.AddComponent<RigidBodyComponent>(ProjectileVelocity);
-					AProjectile.AddComponent<SpriteComponent>("bullet-image", 4, 4, 4);
+					AProjectile.AddComponent<SpriteComponent>("bullet-texture", 4, 4, 4);
 					AProjectile.AddComponent<BoxColliderComponent>(4, 4);
 					AProjectile.AddComponent<ProjectileComponent>(AProjectileEmitter.IsFriendly, AProjectileEmitter.HitPercentDamage, AProjectileEmitter.ProjectileDuration);
 				}
@@ -100,7 +100,7 @@ public:
 				AProjectile.Group("Projectiles");
 				AProjectile.AddComponent<TransformComponent>(ProjectilePosition, glm::vec2(1.0, 1.0), 0.0);
 				AProjectile.AddComponent<RigidBodyComponent>(AProjectileEmitter.ProjectileVelocity);
-				AProjectile.AddComponent<SpriteComponent>("bullet-image", 4, 4, 4);
+				AProjectile.AddComponent<SpriteComponent>("bullet-texture", 4, 4, 4);
 				AProjectile.AddComponent<BoxColliderComponent>(4, 4);
 				AProjectile.AddComponent<ProjectileComponent>(AProjectileEmitter.IsFriendly, AProjectileEmitter.HitPercentDamage, AProjectileEmitter.ProjectileDuration);
 

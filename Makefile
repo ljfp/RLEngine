@@ -2,7 +2,7 @@
 # Makefile variables
 ###########################################################
 CXX = g++
-COMPILER_FLAGS = -Wall -std=c++2b -O2
+COMPILER_FLAGS = -Wall -std=c++2b -O2 -ggdb
 LINKER_FLAGS = -lSDL2 -lSDL2_image -lSDL2_ttf -llua5.4
 INCLUDE_FLAGS = -I"./third_party/"
 SRC = ./src/*.cpp \

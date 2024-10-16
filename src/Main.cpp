@@ -2,9 +2,11 @@
 
 
 int main(int argc, char* argv[]) {
-	Game game;
+	Game MyGame;
 
-	game.Run();
+	MyGame.Initialize();
+	MyGame.Run();
+	MyGame.Destroy();
 
 	return 0;
 }
