@@ -1,4 +1,6 @@
 .vscode/
 bin/
+build/
 cachegrind.out.*
 imgui.ini
+CMakeSettings.json
