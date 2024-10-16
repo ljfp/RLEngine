@@ -167,7 +167,7 @@ void Game::Setup()
 
 	LevelLoader Loader;
 	LuaState.open_libraries(sol::lib::base, sol::lib::math, sol::lib::os);
-	Loader.LoadLevel(LuaState, GameRegistry, GameAssetManager, Renderer, 1);
+	Loader.LoadLevel(LuaState, GameRegistry, GameAssetManager, Renderer, 2);
 }
 
 void Game::Update()

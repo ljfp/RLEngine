@@ -2793,8 +2793,7 @@ Level = {
 				on_update_script = {
 					[0] =
 					function(entity, delta_time, ellapsed_time)
-						print("Executing the SU-27 fighter jet Lua script!")
-						--[[
+						-- print("Executing the SU-27 fighter jet Lua script!")
 						-- this function makes the fighter jet move up and down the map shooting projectiles
 						local current_position_x, current_position_y = get_position(entity)
 						local current_velocity_x, current_velocity_y = get_velocity(entity)
@@ -2814,7 +2813,6 @@ Level = {
 							set_rotation(entity, 180) -- point down
 							set_projectile_velocity(entity, 0, 200) -- shoot projectiles down
 						end
-						--]]
 					end
 				}
 			}
