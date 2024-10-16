@@ -38,6 +38,7 @@ public:
 			};
 
 			SDL_RenderCopy(Renderer, TextTexture, nullptr, &DestinationRectangle);
+
 			SDL_DestroyTexture(TextTexture);
 		}
 	}

@@ -9,6 +9,7 @@
 #include "../Components/ProjectileEmitterComponent.hpp"
 #include "../Components/RigidBodyComponent.hpp"
 #include "../Components/SpriteComponent.hpp"
+#include "../Components/TextLabelComponent.hpp"
 #include "../Components/TransformComponent.hpp"
 #include "../Systems/AnimationSystem.hpp"
 #include "../Systems/CameraFollowSystem.hpp"
@@ -17,6 +18,7 @@
 #include "../Systems/KeyboardControlSystem.hpp"
 #include "../Systems/MovementSystem.hpp"
 #include "../Systems/RenderColliderSystem.hpp"
+#include "../Systems/RenderTextSystem.hpp"
 #include "../Systems/RenderSystem.hpp"
 #include "../Systems/ProjectileEmitterSystem.hpp"
 #include "../Systems/ProjectileLifecycleSystem.hpp"
@@ -39,6 +41,12 @@ Game::Game()
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
 	{
 		spdlog::error("Error initializing SDL.");
+		return;
+	}
+
+	if (TTF_Init() != 0)
+	{
+		spdlog::error("Error initializing SDL_TTF.");
 		return;
 	}
 
@@ -133,6 +141,7 @@ void Game::LoadLevel(uint8_t LevelNumber)
 	GameRegistry->AddSystem<CameraFollowSystem>();
 	GameRegistry->AddSystem<ProjectileEmitterSystem>();
 	GameRegistry->AddSystem<ProjectileLifecycleSystem>();
+	GameRegistry->AddSystem<RenderTextSystem>();
 
 	// Add assets to the asset store
 	GameAssetManager->AddTexture(Renderer, "tank-image", "./assets/images/tank-panther-right.png");
@@ -141,6 +150,7 @@ void Game::LoadLevel(uint8_t LevelNumber)
 	GameAssetManager->AddTexture(Renderer, "radar-image", "./assets/images/radar.png");
 	GameAssetManager->AddTexture(Renderer, "jungle-tilemap", "./assets/tilemaps/jungle.png");
 	GameAssetManager->AddTexture(Renderer, "bullet-image", "./assets/images/bullet.png");
+	GameAssetManager->AddFont("charriot-font", "./assets/fonts/charriot.ttf", 16);
 
 	// Load the tilemap
 	uint16_t TileSize = 32;
@@ -212,6 +222,9 @@ void Game::LoadLevel(uint8_t LevelNumber)
 	Truck.AddComponent<BoxColliderComponent>(32, 32);
 	Truck.AddComponent<ProjectileEmitterComponent>(glm::vec2(0.0, 300), 2000, 5000, 10, false);
 	Truck.AddComponent<HealthComponent>(100);
+
+	Entity Label = GameRegistry->CreateEntity();
+	Label.AddComponent<TextLabelComponent>(glm::vec2(100.0, 100.0), "Hello World", "charriot-font", SDL_Color{ 255, 255, 255 }, true);
 }
 
 void Game::Setup()
@@ -221,24 +234,24 @@ void Game::Setup()
 
 void Game::ProcessInput()
 {
-	SDL_Event event;
-	while (SDL_PollEvent(&event))
+	SDL_Event Event;
+	while (SDL_PollEvent(&Event))
 	{
-		switch (event.type)
+		switch (Event.type)
 		{
 		case SDL_QUIT:
 			IsRunning = false;
 			break;
 		case SDL_KEYDOWN:
-			if (event.key.keysym.sym == SDLK_ESCAPE)
+			if (Event.key.keysym.sym == SDLK_ESCAPE)
 			{
 				IsRunning = false;
 			}
-			if (event.key.keysym.sym == SDLK_d)
+			if (Event.key.keysym.sym == SDLK_d)
 			{
 				IsDebug = !IsDebug;
 			}
-			GameEventBus->EmitEvent<KeyPressedEvent>(event.key.keysym.sym);
+			GameEventBus->EmitEvent<KeyPressedEvent>(Event.key.keysym.sym);
 			break;
 		}
 	}
@@ -288,6 +301,7 @@ void Game::Render()
 
 	// Invoke all the systems that need to render
 	GameRegistry->GetSystem<RenderSystem>().Update(Renderer, GameAssetManager, Camera);
+	GameRegistry->GetSystem<RenderTextSystem>().Update(Renderer, GameAssetManager, Camera);
 	if (IsDebug)
 	{
 		GameRegistry->GetSystem<RenderColliderSystem>().Update(Renderer, Camera);
