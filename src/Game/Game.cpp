@@ -14,6 +14,7 @@
 #include "../Systems/RenderSystem.hpp"
 #include "../Systems/ProjectileEmitterSystem.hpp"
 #include "../Systems/ProjectileLifecycleSystem.hpp"
+#include "../Systems/ScriptSystem.hpp"
 
 #include <SDL2/SDL_image.h>
 #include <spdlog/spdlog.h>
@@ -159,9 +160,13 @@ void Game::Setup()
 	GameRegistry->AddSystem<RenderTextSystem>();
 	GameRegistry->AddSystem<RenderHealthBarSystem>();
 	GameRegistry->AddSystem<RenderDebugGUISystem>();
+	GameRegistry->AddSystem<ScriptSystem>();
+
+	// Create the bindings between C++ and Lua
+	GameRegistry->GetSystem<ScriptSystem>().CreateLuaBindings(LuaState);
 
 	LevelLoader Loader;
-	LuaState.open_libraries(sol::lib::base, sol::lib::math);
+	LuaState.open_libraries(sol::lib::base, sol::lib::math, sol::lib::os);
 	Loader.LoadLevel(LuaState, GameRegistry, GameAssetManager, Renderer, 1);
 }
 
@@ -201,6 +206,7 @@ void Game::Update()
 	GameRegistry->GetSystem<CollisionSystem>().Update(GameEventBus);
 	GameRegistry->GetSystem<CameraFollowSystem>().Update(Camera);
 	GameRegistry->GetSystem<ProjectileLifecycleSystem>().Update();
+	GameRegistry->GetSystem<ScriptSystem>().Update(DeltaTime, SDL_GetTicks64());
 
 }
 

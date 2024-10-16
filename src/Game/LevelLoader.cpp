@@ -7,6 +7,7 @@
 #include "../Components/HealthComponent.hpp"
 #include "../Components/ProjectileEmitterComponent.hpp"
 #include "../Components/RigidBodyComponent.hpp"
+#include "../Components/ScriptComponent.hpp"
 #include "../Components/SpriteComponent.hpp"
 #include "../Components/TextLabelComponent.hpp"
 #include "../Components/TransformComponent.hpp"
@@ -303,6 +304,14 @@ void LevelLoader::LoadLevel(sol::state& LuaState, const std::unique_ptr<Registry
 					},
 					AnEntity["components"]["text_label"]["fixed"].get_or(false)
 				);
+			}
+
+			// Check for Script
+			sol::optional<sol::table> Script = AnEntity["components"]["on_update_script"];
+			if (Script != sol::nullopt)
+			{
+				sol::function Funct = AnEntity["components"]["on_update_script"][0];
+				NewEntity.AddComponent<ScriptComponent>(Funct);
 			}
 		}
 		i++;

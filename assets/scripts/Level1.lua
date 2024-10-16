@@ -1,3 +1,13 @@
+local current_system_hour = os.date("*t").hour
+
+local map_texture_asset_id
+
+if current_system_hour >= 9 and current_system_hour < 18 then
+	map_texture_asset_id = "tilemap-texture-day"
+else
+	map_texture_asset_id = "tilemap-texture-night"
+end
+
 -- Define a table with the start values of the first level
 Level = {
 	----------------------------------------------------
@@ -5,7 +15,8 @@ Level = {
 	----------------------------------------------------
 	assets = {
 		[0] =
-		{ type = "texture", id = "tilemap-texture",             file = "./assets/tilemaps/jungle.png" },
+		{ type = "texture", id = "tilemap-texture-day",         file = "./assets/tilemaps/jungle.png" },
+		{ type = "texture", id = "tilemap-texture-night",       file = "./assets/tilemaps/jungle-night.png" },
 		{ type = "texture", id = "chopper-texture",             file = "./assets/images/chopper-green-spritesheet.png" },
 		{ type = "texture", id = "su27-texture",                file = "./assets/images/su27-spritesheet.png" },
 		{ type = "texture", id = "f22-texture",                 file = "./assets/images/f22-spritesheet.png" },
@@ -84,7 +95,7 @@ Level = {
 	----------------------------------------------------
 	tilemap = {
 		map_file = "./assets/tilemaps/jungle.map",
-		texture_asset_id = "tilemap-texture",
+		texture_asset_id = map_texture_asset_id,
 		num_rows = 20,
 		num_cols = 25,
 		tile_size = 32,
@@ -2743,7 +2754,6 @@ Level = {
 				}
 			}
 		},
-		--[[
 		{
 			-- SU-27 fighter jet
 			group = "Enemies",
@@ -2783,8 +2793,8 @@ Level = {
 				on_update_script = {
 					[0] =
 					function(entity, delta_time, ellapsed_time)
-						-- print("Executing the SU-27 fighter jet Lua script!")
-
+						print("Executing the SU-27 fighter jet Lua script!")
+						--[[
 						-- this function makes the fighter jet move up and down the map shooting projectiles
 						local current_position_x, current_position_y = get_position(entity)
 						local current_velocity_x, current_velocity_y = get_velocity(entity)
@@ -2804,6 +2814,7 @@ Level = {
 							set_rotation(entity, 180) -- point down
 							set_projectile_velocity(entity, 0, 200) -- shoot projectiles down
 						end
+						--]]
 					end
 				}
 			}
@@ -2847,8 +2858,7 @@ Level = {
 				on_update_script = {
 					[0] =
 					function(entity, delta_time, ellapsed_time)
-						-- print("Executing BF-109 Lua script!")
-
+						-- print("Executing F-22 Lua script!")
 						-- change the position of the the airplane to follow a sine wave movement
 						local new_x = ellapsed_time * 0.09
 						local new_y = 200 + (math.sin(ellapsed_time * 0.001) * 50)
@@ -2857,7 +2867,6 @@ Level = {
 				}
 			}
 		}
-		--]]
 	}
 }
 
