@@ -30,21 +30,6 @@ public:
 			RenderableEntity ARenderableEntity;
 			ARenderableEntity.Transform = AnEntity.GetComponent<TransformComponent>();
 			ARenderableEntity.Sprite = AnEntity.GetComponent<SpriteComponent>();
-
-			bool IsEntityOutsideCameraView =
-			(
-				ARenderableEntity.Transform.Position.x + (ARenderableEntity.Transform.Scale.x * ARenderableEntity.Sprite.Width) < Camera.x ||
-				ARenderableEntity.Transform.Position.x > Camera.x + Camera.w ||
-				ARenderableEntity.Transform.Position.y + (ARenderableEntity.Transform.Scale.y * ARenderableEntity.Sprite.Height) < Camera.y ||
-				ARenderableEntity.Transform.Position.y > Camera.y + Camera.h
-			);
-
-			// Bypass rendering entities if they are outside the camera view.
-			if (IsEntityOutsideCameraView && !ARenderableEntity.Sprite.IsFixed)
-			{
-				continue;
-			}
-
 			RenderableEntities.emplace_back(ARenderableEntity);
 		}
 
@@ -82,7 +67,7 @@ public:
 				&DestinationRectangle,
 				Transform.Rotation,
 				NULL,
-				Sprite.Flip
+				SDL_FLIP_NONE
 			);
 		}
 	}

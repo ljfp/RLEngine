@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../ECS/ECS.hpp"
 #include "../EventBus/Event.hpp"
 #include <SDL2/SDL.h>
 
