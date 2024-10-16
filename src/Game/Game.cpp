@@ -17,6 +17,7 @@
 #include "../Systems/KeyboardControlSystem.hpp"
 #include "../Systems/MovementSystem.hpp"
 #include "../Systems/RenderColliderSystem.hpp"
+#include "../Systems/RenderDebugGUISystem.hpp"
 #include "../Systems/RenderHealthBarSystem.hpp"
 #include "../Systems/RenderTextSystem.hpp"
 #include "../Systems/RenderSystem.hpp"
@@ -156,6 +157,7 @@ void Game::LoadLevel(uint8_t LevelNumber)
 	GameRegistry->AddSystem<ProjectileLifecycleSystem>();
 	GameRegistry->AddSystem<RenderTextSystem>();
 	GameRegistry->AddSystem<RenderHealthBarSystem>();
+	GameRegistry->AddSystem<RenderDebugGUISystem>();
 
 	// Add assets to the asset store
 	GameAssetManager->AddTexture(Renderer, "tank-image", "./assets/images/tank-panther-right.png");
@@ -327,24 +329,15 @@ void Game::Render()
 	SDL_SetRenderDrawColor(Renderer, 21, 21, 21, 255);
 	SDL_RenderClear(Renderer);
 
-	// Render Dear ImGui frame
-	ImGui_ImplSDLRenderer2_NewFrame();
-	ImGui_ImplSDL2_NewFrame();
-	ImGui::NewFrame();
-
 	// Invoke all the systems that need to render
 	GameRegistry->GetSystem<RenderSystem>().Update(Renderer, GameAssetManager, Camera);
 	GameRegistry->GetSystem<RenderTextSystem>().Update(Renderer, GameAssetManager, Camera);
 	GameRegistry->GetSystem<RenderHealthBarSystem>().Update(Renderer, GameAssetManager, Camera);
 	if (IsDebug)
 	{
-		ImGui::ShowDemoWindow();
 		GameRegistry->GetSystem<RenderColliderSystem>().Update(Renderer, Camera);
+		GameRegistry->GetSystem<RenderDebugGUISystem>().Update(Renderer, GameRegistry, Camera);
 	}
-
-	// Present new Dear ImGui frame
-	ImGui::Render();
-	ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), Renderer);
 
 	SDL_RenderPresent(Renderer);
 }
