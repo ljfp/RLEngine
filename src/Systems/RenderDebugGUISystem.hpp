@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../ECS/ECS.hpp"
 #include "../Components/TransformComponent.hpp"
 #include "../Components/RigidBodyComponent.hpp"
 #include "../Components/SpriteComponent.hpp"
@@ -12,19 +11,24 @@
 #include <imgui/imgui_impl_sdl2.h>
 #include <imgui/imgui_impl_sdlrenderer2.h>
 #include <SDL2/SDL.h>
+#include <flecs.h>
 
-class RenderDebugGUISystem : public System
+class RenderDebugGUISystem
 {
 public:
-	RenderDebugGUISystem() = default;
+	RenderDebugGUISystem(flecs::world& ecs)
+	{
+		ecs.system<>()
+			.each([this](flecs::entity e) {
+				Update(e.world().get<SDL_Renderer>(), e.world(), e.world().get<SDL_Rect>());
+			});
+	}
 
-	void Update(SDL_Renderer* Renderer, const std::unique_ptr<Registry>& Registry, const SDL_Rect& Camera)
+	void Update(SDL_Renderer* Renderer, flecs::world& world, const SDL_Rect& Camera)
 	{
 		ImGui_ImplSDLRenderer2_NewFrame();
 		ImGui_ImplSDL2_NewFrame();
 		ImGui::NewFrame();
-
-		//ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_AlwaysAutoResize;
 
 		if (ImGui::Begin("Spawn Enemies"))
 		{
@@ -92,16 +96,21 @@ public:
 			// Button to spawn an enemy
 			if (ImGui::Button("Spawn enemy"))
 			{
-				Entity Enemy = Registry->CreateEntity();
-				Enemy.Group("Enemies");
-				Enemy.AddComponent<TransformComponent>(glm::vec2(PositionX, PositionY), glm::vec2(ScaleX, ScaleY), glm::degrees(Rotation));
-				Enemy.AddComponent<RigidBodyComponent>(glm::vec2(VelocityX, VelocityY));
-				Enemy.AddComponent<SpriteComponent>(Sprites[SelectedSpriteIndex], 32, 32, 1);
-				Enemy.AddComponent<BoxColliderComponent>(25, 20, glm::vec2(5, 5));
+				flecs::entity Enemy = world.entity();
+				Enemy.add<TransformComponent>()
+					.set<TransformComponent>({glm::vec2(PositionX, PositionY), glm::vec2(ScaleX, ScaleY), glm::degrees(Rotation)});
+				Enemy.add<RigidBodyComponent>()
+					.set<RigidBodyComponent>({glm::vec2(VelocityX, VelocityY)});
+				Enemy.add<SpriteComponent>()
+					.set<SpriteComponent>({Sprites[SelectedSpriteIndex], 32, 32, 1});
+				Enemy.add<BoxColliderComponent>()
+					.set<BoxColliderComponent>({25, 20, glm::vec2(5, 5)});
 				double ProjectileVelocityX = ProjectileSpeed * cos(ProjectileAngle);
 				double ProjectileVelocityY = ProjectileSpeed * sin(ProjectileAngle);
-				Enemy.AddComponent<ProjectileEmitterComponent>(glm::vec2(ProjectileVelocityX, ProjectileVelocityY), ProjectileRepeat * 1000, ProjectileDuration * 1000, 10, false);
-				Enemy.AddComponent<HealthComponent>(Health);
+				Enemy.add<ProjectileEmitterComponent>()
+					.set<ProjectileEmitterComponent>({glm::vec2(ProjectileVelocityX, ProjectileVelocityY), ProjectileRepeat * 1000, ProjectileDuration * 1000, 10, false});
+				Enemy.add<HealthComponent>()
+					.set<HealthComponent>({Health});
 
 				// Reset all input values after we create the enemy
 				PositionX = PositionY = Rotation = ProjectileAngle = 0;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../ECS/ECS.hpp"
+#include <flecs.h>
 #include "../AssetManager/AssetManager.hpp"
 #include "../EventBus/EventBus.hpp"
 #include <SDL2/SDL.h>
@@ -39,7 +39,7 @@ private:
 
 	sol::state LuaState;
 
-	std::unique_ptr<Registry> GameRegistry;
+	std::unique_ptr<flecs::world> GameRegistry;
 	std::unique_ptr<AssetManager> GameAssetManager;
 	std::unique_ptr<EventBus> GameEventBus;
 };
