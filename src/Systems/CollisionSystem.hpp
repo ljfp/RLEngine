@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../ECS/ECS.hpp"
+#include <flecs.h>
 #include "../Components/BoxColliderComponent.hpp"
 #include "../Components/TransformComponent.hpp"
 #include "../EventBus/Event.hpp"
@@ -8,48 +8,37 @@
 
 #include <spdlog/spdlog.h>
 
-class CollisionSystem : public System
+class CollisionSystem
 {
 public:
-	CollisionSystem()
+	CollisionSystem(flecs::world& ecs)
 	{
-		RequireComponent<BoxColliderComponent>();
-		RequireComponent<TransformComponent>();
+		ecs.system<BoxColliderComponent, TransformComponent>()
+			.each([this](flecs::entity e, BoxColliderComponent& collider, TransformComponent& transform) {
+				CheckCollisions(e, collider, transform);
+			});
 	}
 
-	void Update(std::unique_ptr<EventBus>& EventBus)
+	void CheckCollisions(flecs::entity e, BoxColliderComponent& collider, TransformComponent& transform)
 	{
-		// TODO: check all entities that have a BoxColliderComponent and a TransformComponent to see if they are colliding with each other.
-		auto Entities = GetSystemEntities();
+		auto entities = e.world().filter<BoxColliderComponent, TransformComponent>();
 
-		for (auto i = Entities.begin(); i != Entities.end(); i++)
+		for (auto other : entities)
 		{
-			Entity A = *i;
+			if (e == other) continue;
 
-			auto ATransform = A.GetComponent<TransformComponent>();
-			auto ACollider = A.GetComponent<BoxColliderComponent>();
+			auto& otherTransform = other.get<TransformComponent>();
+			auto& otherCollider = other.get<BoxColliderComponent>();
 
-			for (auto j = i; j != Entities.end(); j++)
+			bool isColliding = CheckAABBCollision(
+				transform.Position.x + collider.Offset.x, transform.Position.y + collider.Offset.y, collider.Width * transform.Scale.x, collider.Height * transform.Scale.y,
+				otherTransform.Position.x + otherCollider.Offset.x, otherTransform.Position.y + otherCollider.Offset.y, otherCollider.Width * otherTransform.Scale.x, otherCollider.Height * otherTransform.Scale.y
+			);
+
+			if (isColliding)
 			{
-				Entity B = *j;
-
-				// Skip if A and B are the same entity
-				if (A == B) { continue; }
-
-				auto BTransform = B.GetComponent<TransformComponent>();
-				auto BCollider = B.GetComponent<BoxColliderComponent>();
-
-				// Check for collision using AABB (Axis-Aligned Bounding Box)
-				bool IsColliding = CheckAABBCollision(
-					ATransform.Position.x + ACollider.Offset.x, ATransform.Position.y + ACollider.Offset.y, ACollider.Width * ATransform.Scale.x, ACollider.Height * ATransform.Scale.y,
-					BTransform.Position.x + BCollider.Offset.x, BTransform.Position.y + BCollider.Offset.y, BCollider.Width * BTransform.Scale.x, BCollider.Height * BTransform.Scale.y
-				);
-				if (IsColliding)
-				{
-					spdlog::info("Collision detected between entities {} and {}", A.GetID(), B.GetID());
-
-					EventBus->EmitEvent<CollisionEvent>(A, B);
-				}
+				spdlog::info("Collision detected between entities {} and {}", e.id(), other.id());
+				e.world().event<CollisionEvent>().id(e).id(other).emit();
 			}
 		}
 	}
@@ -58,5 +47,4 @@ public:
 	{
 		return (AX < BX + BW && AX + AW > BX && AY < BY + BH && AY + AH > BY);
 	}
-
 };

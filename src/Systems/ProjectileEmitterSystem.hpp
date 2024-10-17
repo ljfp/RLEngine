@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../ECS/ECS.hpp"
+#include <flecs.h>
 #include "../EventBus/EventBus.hpp"
 #include "../Events/KeyPressedEvent.hpp"
 #include "../Components/BoxColliderComponent.hpp"
@@ -13,100 +13,96 @@
 
 #include <spdlog/spdlog.h>
 
-
-class ProjectileEmitterSystem : public System
+class ProjectileEmitterSystem
 {
 public:
-	ProjectileEmitterSystem()
-	{
-		RequireComponent<ProjectileEmitterComponent>();
-		RequireComponent<TransformComponent>();
-	}
+    ProjectileEmitterSystem(flecs::world& ecs)
+    {
+        ecs.system<ProjectileEmitterComponent, TransformComponent>()
+            .each([this](flecs::entity e, ProjectileEmitterComponent& emitter, TransformComponent& transform) {
+                UpdateEntity(e, emitter, transform);
+            });
 
-	void SubscribeToEvents(std::unique_ptr<EventBus>& EventBus)
-	{
-		EventBus->SubscribeToEvent<KeyPressedEvent>(this, &ProjectileEmitterSystem::OnKeyPressed);
-	}
+        ecs.observer<KeyPressedEvent>()
+            .event<KeyPressedEvent>()
+            .each([this](flecs::entity e, KeyPressedEvent& event) {
+                OnKeyPressed(event);
+            });
+    }
 
-	void OnKeyPressed(KeyPressedEvent& Event)
-	{
-		if (Event.KeyCode == SDLK_SPACE)
-		{
-			spdlog::info("Space key pressed");
-			for (auto AnEntity : GetSystemEntities())
-			{
-				if (AnEntity.HasComponent<CameraFollowComponent>())
-				{
-					const auto AProjectileEmitter = AnEntity.GetComponent<ProjectileEmitterComponent>();
-					const auto ATransform = AnEntity.GetComponent<TransformComponent>();
-					const auto ARigidBody = AnEntity.GetComponent<RigidBodyComponent>();
+    void OnKeyPressed(KeyPressedEvent& event)
+    {
+        if (event.KeyCode == SDLK_SPACE)
+        {
+            spdlog::info("Space key pressed");
+            auto entities = e.world().filter<ProjectileEmitterComponent, TransformComponent, CameraFollowComponent>();
 
-					// Projectile position
-					glm::vec2 ProjectilePosition = ATransform.Position;
-					if (AnEntity.HasComponent<SpriteComponent>())
-					{
-						const auto ASprite = AnEntity.GetComponent<SpriteComponent>();
-						ProjectilePosition.x += (ATransform.Scale.x * ASprite.Width / 2);
-						ProjectilePosition.y += (ATransform.Scale.y * ASprite.Height / 2);
-					}
+            for (auto entity : entities)
+            {
+                const auto& emitter = entity.get<ProjectileEmitterComponent>();
+                const auto& transform = entity.get<TransformComponent>();
+                const auto& rigidBody = entity.get<RigidBodyComponent>();
 
-					// If the parent entity direction is controlled by the keyboard modify the direction of the projectile accordingly.
-					glm::vec2 ProjectileVelocity = AProjectileEmitter.ProjectileVelocity;
-					int16_t DirectionX = 0;
-					int16_t DirectionY = 0;
-					if (ARigidBody.Velocity.x > 0) DirectionX = +1;
-					if (ARigidBody.Velocity.x < 0) DirectionX = -1;
-					if (ARigidBody.Velocity.y > 0) DirectionY = +1;
-					if (ARigidBody.Velocity.y < 0) DirectionY = -1;
-					ProjectileVelocity.x = DirectionX * AProjectileEmitter.ProjectileVelocity.x;
-					ProjectileVelocity.y = DirectionY * AProjectileEmitter.ProjectileVelocity.y;
+                glm::vec2 projectilePosition = transform.Position;
+                if (entity.has<SpriteComponent>())
+                {
+                    const auto& sprite = entity.get<SpriteComponent>();
+                    projectilePosition.x += (transform.Scale.x * sprite.Width / 2);
+                    projectilePosition.y += (transform.Scale.y * sprite.Height / 2);
+                }
 
-					// Emit a projectile
-					Entity AProjectile = AnEntity.registry->CreateEntity();
-					AProjectile.Group("Projectiles");
-					AProjectile.AddComponent<TransformComponent>(ProjectilePosition, glm::vec2(1.0, 1.0), 0.0);
-					AProjectile.AddComponent<RigidBodyComponent>(ProjectileVelocity);
-					AProjectile.AddComponent<SpriteComponent>("bullet-texture", 4, 4, 4);
-					AProjectile.AddComponent<BoxColliderComponent>(4, 4);
-					AProjectile.AddComponent<ProjectileComponent>(AProjectileEmitter.IsFriendly, AProjectileEmitter.HitPercentDamage, AProjectileEmitter.ProjectileDuration);
-				}
-			}
-		}
-	}
+                glm::vec2 projectileVelocity = emitter.ProjectileVelocity;
+                int16_t directionX = 0;
+                int16_t directionY = 0;
+                if (rigidBody.Velocity.x > 0) directionX = +1;
+                if (rigidBody.Velocity.x < 0) directionX = -1;
+                if (rigidBody.Velocity.y > 0) directionY = +1;
+                if (rigidBody.Velocity.y < 0) directionY = -1;
+                projectileVelocity.x = directionX * emitter.ProjectileVelocity.x;
+                projectileVelocity.y = directionY * emitter.ProjectileVelocity.y;
 
-	void Update(std::unique_ptr<Registry>& Registry)
-	{
-		for (auto AnEntity : GetSystemEntities())
-		{
-			auto& AProjectileEmitter = AnEntity.GetComponent<ProjectileEmitterComponent>();
-			const auto ATransform = AnEntity.GetComponent<TransformComponent>();
+                flecs::entity projectile = e.world().entity();
+                projectile.add<TransformComponent>()
+                    .set<TransformComponent>({projectilePosition, glm::vec2(1.0, 1.0), 0.0});
+                projectile.add<RigidBodyComponent>()
+                    .set<RigidBodyComponent>({projectileVelocity});
+                projectile.add<SpriteComponent>()
+                    .set<SpriteComponent>({"bullet-texture", 4, 4, 4});
+                projectile.add<BoxColliderComponent>()
+                    .set<BoxColliderComponent>({4, 4});
+                projectile.add<ProjectileComponent>()
+                    .set<ProjectileComponent>({emitter.IsFriendly, emitter.HitPercentDamage, emitter.ProjectileDuration});
+            }
+        }
+    }
 
-			// If emission frequency is zero, bypass re-emission logic
-			if (AProjectileEmitter.ProjectileFrequency == 0) continue;
+    void UpdateEntity(flecs::entity e, ProjectileEmitterComponent& emitter, TransformComponent& transform)
+    {
+        if (emitter.ProjectileFrequency == 0) return;
 
-			// Check if its tome to re-emit a new projectile
-			if (SDL_GetTicks() - AProjectileEmitter.LastEmissionTime > AProjectileEmitter.ProjectileFrequency)
-			{
-				// Projectile position
-				glm::vec2 ProjectilePosition = ATransform.Position;
-				if (AnEntity.HasComponent<SpriteComponent>())
-				{
-					const auto ASprite = AnEntity.GetComponent<SpriteComponent>();
-					ProjectilePosition.x += (ATransform.Scale.x * ASprite.Width / 2);
-					ProjectilePosition.y += (ATransform.Scale.y * ASprite.Height / 2);
-				}
-				// Emit a projectile
-				Entity AProjectile = Registry->CreateEntity();
-				AProjectile.Group("Projectiles");
-				AProjectile.AddComponent<TransformComponent>(ProjectilePosition, glm::vec2(1.0, 1.0), 0.0);
-				AProjectile.AddComponent<RigidBodyComponent>(AProjectileEmitter.ProjectileVelocity);
-				AProjectile.AddComponent<SpriteComponent>("bullet-texture", 4, 4, 4);
-				AProjectile.AddComponent<BoxColliderComponent>(4, 4);
-				AProjectile.AddComponent<ProjectileComponent>(AProjectileEmitter.IsFriendly, AProjectileEmitter.HitPercentDamage, AProjectileEmitter.ProjectileDuration);
+        if (SDL_GetTicks() - emitter.LastEmissionTime > emitter.ProjectileFrequency)
+        {
+            glm::vec2 projectilePosition = transform.Position;
+            if (e.has<SpriteComponent>())
+            {
+                const auto& sprite = e.get<SpriteComponent>();
+                projectilePosition.x += (transform.Scale.x * sprite.Width / 2);
+                projectilePosition.y += (transform.Scale.y * sprite.Height / 2);
+            }
 
-				// Update LastEmissionTime
-				AProjectileEmitter.LastEmissionTime = SDL_GetTicks();
-			}
-		}
-	}
+            flecs::entity projectile = e.world().entity();
+            projectile.add<TransformComponent>()
+                .set<TransformComponent>({projectilePosition, glm::vec2(1.0, 1.0), 0.0});
+            projectile.add<RigidBodyComponent>()
+                .set<RigidBodyComponent>({emitter.ProjectileVelocity});
+            projectile.add<SpriteComponent>()
+                .set<SpriteComponent>({"bullet-texture", 4, 4, 4});
+            projectile.add<BoxColliderComponent>()
+                .set<BoxColliderComponent>({4, 4});
+            projectile.add<ProjectileComponent>()
+                .set<ProjectileComponent>({emitter.IsFriendly, emitter.HitPercentDamage, emitter.ProjectileDuration});
+
+            emitter.LastEmissionTime = SDL_GetTicks();
+        }
+    }
 };

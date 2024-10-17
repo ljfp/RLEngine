@@ -3,19 +3,20 @@
 #include "../Components/KeyboardControlComponent.hpp"
 #include "../Components/RigidBodyComponent.hpp"
 #include "../Components/SpriteComponent.hpp"
-#include "../ECS/ECS.hpp"
+#include <flecs.h>
 #include "../EventBus/EventBus.hpp"
 #include "../Events/KeyPressedEvent.hpp"
 #include <spdlog/spdlog.h>
 
-class KeyboardControlSystem : public System
+class KeyboardControlSystem
 {
 public:
-	KeyboardControlSystem()
+	KeyboardControlSystem(flecs::world& ecs)
 	{
-		RequireComponent<KeyboardControlComponent>();
-		RequireComponent<RigidBodyComponent>();
-		RequireComponent<SpriteComponent>();
+		ecs.system<KeyboardControlComponent, RigidBodyComponent, SpriteComponent>()
+			.each([this](flecs::entity e, KeyboardControlComponent& keyboardControl, RigidBodyComponent& rigidBody, SpriteComponent& sprite) {
+				this->entities.push_back(e);
+			});
 	}
 
 	void SubscribeToEvents(std::unique_ptr<EventBus>& EventBus)
@@ -25,35 +26,34 @@ public:
 
 	void OnKeyPressed(KeyPressedEvent& Event)
 	{
-		//std::string KeySymbol(1, Event.KeyCode);
-		//spdlog::info("Key pressed event emitted with key code {} and key symbol {}", Event.KeyCode, KeySymbol);
-
-		for (auto AnEntity : GetSystemEntities())
+		for (auto e : entities)
 		{
-			const auto KeyboardControl = AnEntity.GetComponent<KeyboardControlComponent>();
-			auto& RigidBody = AnEntity.GetComponent<RigidBodyComponent>();
-			auto& Sprite = AnEntity.GetComponent<SpriteComponent>();
+			const auto& keyboardControl = e.get<KeyboardControlComponent>();
+			auto& rigidBody = e.get_mut<RigidBodyComponent>();
+			auto& sprite = e.get_mut<SpriteComponent>();
 
 			switch (Event.KeyCode)
 			{
-				// The numbers correspond with the position of the sprite in the sprite sheet.
 				case SDLK_UP:
-					RigidBody.Velocity = KeyboardControl.UpVelocity;
-					Sprite.SrcRect.y = Sprite.Height * 0;
+					rigidBody.Velocity = keyboardControl.UpVelocity;
+					sprite.SrcRect.y = sprite.Height * 0;
 					break;
 				case SDLK_DOWN:
-					RigidBody.Velocity = KeyboardControl.DownVelocity;
-					Sprite.SrcRect.y = Sprite.Height * 2;
+					rigidBody.Velocity = keyboardControl.DownVelocity;
+					sprite.SrcRect.y = sprite.Height * 2;
 					break;
 				case SDLK_LEFT:
-					RigidBody.Velocity = KeyboardControl.LeftVelocity;
-					Sprite.SrcRect.y = Sprite.Height * 3;
+					rigidBody.Velocity = keyboardControl.LeftVelocity;
+					sprite.SrcRect.y = sprite.Height * 3;
 					break;
 				case SDLK_RIGHT:
-					RigidBody.Velocity = KeyboardControl.RightVelocity;
-					Sprite.SrcRect.y = Sprite.Height * 1;
+					rigidBody.Velocity = keyboardControl.RightVelocity;
+					sprite.SrcRect.y = sprite.Height * 1;
 					break;
 			}
 		}
 	}
+
+private:
+	std::vector<flecs::entity> entities;
 };

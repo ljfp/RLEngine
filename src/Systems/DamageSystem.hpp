@@ -1,92 +1,81 @@
 #pragma once
 
-#include "../ECS/ECS.hpp"
+#include <flecs.h>
 #include "../Components/BoxColliderComponent.hpp"
 #include "../Components/HealthComponent.hpp"
 #include "../Components/ProjectileComponent.hpp"
-#include "../EventBus/EventBus.hpp"
 #include "../Events/CollisionEvent.hpp"
 #include <spdlog/spdlog.h>
 
-class DamageSystem : public System
+class DamageSystem
 {
 public:
-	DamageSystem()
+	DamageSystem(flecs::world& ecs)
 	{
-		RequireComponent<BoxColliderComponent>();
+		ecs.system<BoxColliderComponent>()
+			.each([this](flecs::entity e, BoxColliderComponent& collider) {
+				CheckCollisions(e, collider);
+			});
 	}
 
-	void SubscribeToEvents(std::unique_ptr<EventBus>& EventBus)
+	void CheckCollisions(flecs::entity e, BoxColliderComponent& collider)
 	{
-		EventBus->SubscribeToEvent<CollisionEvent>(this, &DamageSystem::OnCollision);
-	}
+		auto entities = e.world().filter<BoxColliderComponent>();
 
-	void OnCollision(CollisionEvent& Event)
-	{
-		Entity EntityA = Event.A;
-		Entity EntityB = Event.B;
-		spdlog::info("The damage system received an event collision between entities {} and {}", EntityA.GetID(), EntityB.GetID());
-
-		if (EntityA.BelongsToGroup("Projectiles") && EntityB.HasTag("Player"))
+		for (auto other : entities)
 		{
-			OnProjectileHitsPlayer(EntityA, EntityB);
-		}
+			if (e == other) continue;
 
-		if (EntityA.HasTag("Player") && EntityB.BelongsToGroup("Projectiles"))
-		{
-			OnProjectileHitsPlayer(EntityB, EntityA);
-		}
+			auto& otherCollider = other.get<BoxColliderComponent>();
 
-		if (EntityA.BelongsToGroup("Projectiles") && EntityB.BelongsToGroup("Enemies"))
-		{
-			OnProjectileHitsEnemy(EntityA, EntityB);
-		}
+			bool isColliding = CheckAABBCollision(
+				collider.x, collider.y, collider.width, collider.height,
+				otherCollider.x, otherCollider.y, otherCollider.width, otherCollider.height
+			);
 
-		if (EntityA.BelongsToGroup("Enemies") && EntityB.BelongsToGroup("Projectiles"))
-		{
-			OnProjectileHitsEnemy(EntityB, EntityA);
-		}
-	}
-
-	void Update()
-	{
-		// TODO: ...
-	}
-
-	void OnProjectileHitsPlayer(Entity& AProjectile, Entity& Player)
-	{
-		const auto AProjectileComponent = AProjectile.GetComponent<ProjectileComponent>();
-
-		if (!AProjectileComponent.IsFriendly)
-		{
-			auto& PlayerHealth = Player.GetComponent<HealthComponent>();
-			PlayerHealth.HealthPercentage -= AProjectileComponent.HitPercentDamage;
-
-			if (PlayerHealth.HealthPercentage <= 0)
+			if (isColliding)
 			{
-				Player.Kill();
+				spdlog::info("Collision detected between entities {} and {}", e.id(), other.id());
+				e.world().event<CollisionEvent>().id(e).id(other).emit();
+			}
+		}
+	}
+
+	bool CheckAABBCollision(double AX, double AY, double AW, double AH, double BX, double BY, double BW, double BH)
+	{
+		return (AX < BX + BW && AX + AW > BX && AY < BY + BH && AY + AH > BY);
+	}
+
+	void OnCollision(flecs::entity e, flecs::entity other)
+	{
+		spdlog::info("The damage system received an event collision between entities {} and {}", e.id(), other.id());
+
+		if (e.has<ProjectileComponent>() && other.has<HealthComponent>())
+		{
+			OnProjectileHitsEntity(e, other);
+		}
+
+		if (other.has<ProjectileComponent>() && e.has<HealthComponent>())
+		{
+			OnProjectileHitsEntity(other, e);
+		}
+	}
+
+	void OnProjectileHitsEntity(flecs::entity projectile, flecs::entity entity)
+	{
+		const auto& projectileComponent = projectile.get<ProjectileComponent>();
+
+		if (projectileComponent.IsFriendly)
+		{
+			auto& entityHealth = entity.get_mut<HealthComponent>();
+			entityHealth.HealthPercentage -= projectileComponent.HitPercentDamage;
+
+			if (entityHealth.HealthPercentage <= 0)
+			{
+				entity.destruct();
 			}
 
-			AProjectile.Kill();
-		}
-	}
-
-	void OnProjectileHitsEnemy(Entity& AProjectile, Entity& Enemy)
-	{
-		const auto AProjectileComponent = AProjectile.GetComponent<ProjectileComponent>();
-
-		// In this case, the projectile is friendly (it comes from the player), so it should hit the enemy
-		if (AProjectileComponent.IsFriendly)
-		{
-			auto& EnemyHealth = Enemy.GetComponent<HealthComponent>();
-			EnemyHealth.HealthPercentage -= AProjectileComponent.HitPercentDamage;
-
-			if (EnemyHealth.HealthPercentage <= 0)
-			{
-				Enemy.Kill();
-			}
-
-			AProjectile.Kill();
+			projectile.destruct();
 		}
 	}
 };

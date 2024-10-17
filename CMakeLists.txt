@@ -29,6 +29,7 @@ target_link_libraries(RLEngine
 	"${CMAKE_SOURCE_DIR}/lib/SDL2_image.lib"
 	"${CMAKE_SOURCE_DIR}/lib/SDL2_ttf.lib"
 	"${CMAKE_SOURCE_DIR}/lib/lua54.lib"
+	"${CMAKE_SOURCE_DIR}/lib/flecs.lib"
 )
 
 add_custom_command(TARGET RLEngine POST_BUILD
@@ -37,7 +38,7 @@ add_custom_command(TARGET RLEngine POST_BUILD
 		"${CMAKE_SOURCE_DIR}/lib/SDL2_image.dll"
 		"${CMAKE_SOURCE_DIR}/lib/SDL2_ttf.dll"
 		"${CMAKE_SOURCE_DIR}/lib/lua54.dll"
-		"${CMAKE_SOURCE_DIR}/bin"
+		"${CMAKE_SOURCE_DIR}/lib/flecs.dll"
 )
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT RLEngine)

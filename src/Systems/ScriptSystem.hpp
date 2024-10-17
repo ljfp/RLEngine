@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../ECS/ECS.hpp"
+#include <flecs.h>
 #include "../Components/AnimationComponent.hpp"
 #include "../Components/ProjectileEmitterComponent.hpp"
 #include "../Components/RigidBodyComponent.hpp"
@@ -10,11 +10,11 @@
 #include <tuple>
 
 // We first declare native C++ functions that we want to bind with Lua functions.
-std::tuple<double, double> GetEntityPosition(Entity AnEntity)
+std::tuple<double, double> GetEntityPosition(flecs::entity AnEntity)
 {
-	if (AnEntity.HasComponent<TransformComponent>())
+	if (AnEntity.has<TransformComponent>())
 	{
-		const auto Transform = AnEntity.GetComponent<TransformComponent>();
+		const auto& Transform = AnEntity.get<TransformComponent>();
 		return std::make_tuple(Transform.Position.x, Transform.Position.y);
 	}
 	else
@@ -24,11 +24,11 @@ std::tuple<double, double> GetEntityPosition(Entity AnEntity)
 	}
 }
 
-std::tuple<double, double> GetEntityVelocity(Entity AnEntity)
+std::tuple<double, double> GetEntityVelocity(flecs::entity AnEntity)
 {
-	if (AnEntity.HasComponent<RigidBodyComponent>())
+	if (AnEntity.has<RigidBodyComponent>())
 	{
-		const auto RigidBody = AnEntity.GetComponent<RigidBodyComponent>();
+		const auto& RigidBody = AnEntity.get<RigidBodyComponent>();
 		return std::make_tuple(RigidBody.Velocity.x, RigidBody.Velocity.y);
 	}
 	else
@@ -38,12 +38,11 @@ std::tuple<double, double> GetEntityVelocity(Entity AnEntity)
 	}
 }
 
-void SetEntityPosition(Entity AnEntity, double x, double y)
+void SetEntityPosition(flecs::entity AnEntity, double x, double y)
 {
-	// TODO:
-	if (AnEntity.HasComponent<TransformComponent>())
+	if (AnEntity.has<TransformComponent>())
 	{
-		auto& Transform = AnEntity.GetComponent<TransformComponent>();
+		auto& Transform = AnEntity.get_mut<TransformComponent>();
 		Transform.Position = glm::vec2(x, y);
 	}
 	else
@@ -52,11 +51,11 @@ void SetEntityPosition(Entity AnEntity, double x, double y)
 	}
 }
 
-void SetEntityVelocity(Entity AnEntity, double x, double y)
+void SetEntityVelocity(flecs::entity AnEntity, double x, double y)
 {
-	if (AnEntity.HasComponent<RigidBodyComponent>())
+	if (AnEntity.has<RigidBodyComponent>())
 	{
-		auto& RigidBody = AnEntity.GetComponent<RigidBodyComponent>();
+		auto& RigidBody = AnEntity.get_mut<RigidBodyComponent>();
 		RigidBody.Velocity = glm::vec2(x, y);
 	}
 	else
@@ -65,11 +64,11 @@ void SetEntityVelocity(Entity AnEntity, double x, double y)
 	}
 }
 
-void SetEntityRotation(Entity AnEntity, double Angle)
+void SetEntityRotation(flecs::entity AnEntity, double Angle)
 {
-	if (AnEntity.HasComponent<TransformComponent>())
+	if (AnEntity.has<TransformComponent>())
 	{
-		auto& Transform = AnEntity.GetComponent<TransformComponent>();
+		auto& Transform = AnEntity.get_mut<TransformComponent>();
 		Transform.Rotation = Angle;
 	}
 	else
@@ -78,11 +77,11 @@ void SetEntityRotation(Entity AnEntity, double Angle)
 	}
 }
 
-void SetEntityAnimationFrame(Entity AnEntity, uint8_t Frame)
+void SetEntityAnimationFrame(flecs::entity AnEntity, uint8_t Frame)
 {
-	if (AnEntity.HasComponent<AnimationComponent>())
+	if (AnEntity.has<AnimationComponent>())
 	{
-		auto& Animation = AnEntity.GetComponent<AnimationComponent>();
+		auto& Animation = AnEntity.get_mut<AnimationComponent>();
 		Animation.CurrentFrame = Frame;
 	}
 	else
@@ -91,11 +90,11 @@ void SetEntityAnimationFrame(Entity AnEntity, uint8_t Frame)
 	}
 }
 
-void SetProjectileVelocity(Entity AnEntity, double x, double y)
+void SetProjectileVelocity(flecs::entity AnEntity, double x, double y)
 {
-	if (AnEntity.HasComponent<ProjectileEmitterComponent>())
+	if (AnEntity.has<ProjectileEmitterComponent>())
 	{
-		auto& ProjectileEmitter = AnEntity.GetComponent<ProjectileEmitterComponent>();
+		auto& ProjectileEmitter = AnEntity.get_mut<ProjectileEmitterComponent>();
 		ProjectileEmitter.ProjectileVelocity = glm::vec2(x, y);
 	}
 	else
@@ -104,24 +103,27 @@ void SetProjectileVelocity(Entity AnEntity, double x, double y)
 	}
 }
 
-class ScriptSystem : public System
+class ScriptSystem
 {
 public:
-	ScriptSystem()
+	ScriptSystem(flecs::world& ecs)
 	{
-		RequireComponent<ScriptComponent>();
+		ecs.system<ScriptComponent>()
+			.each([this](flecs::entity e, ScriptComponent& script) {
+				this->entities.push_back(e);
+			});
 	}
 
 	void CreateLuaBindings(sol::state& LuaState)
 	{
 		// Create the "Entity" class in Lua.
-		LuaState.new_usertype<Entity>
+		LuaState.new_usertype<flecs::entity>
 		(
 			"entity",
-			"get_id", &Entity::GetID,
-			"destroy", &Entity::Kill,
-			"has_tag", &Entity::HasTag,
-			"belongs_to_group", &Entity::BelongsToGroup
+			"get_id", &flecs::entity::id,
+			"destroy", &flecs::entity::destruct,
+			"has_tag", &flecs::entity::has_tag,
+			"belongs_to_group", &flecs::entity::belongs_to_group
 		);
 
 		LuaState.set_function("get_position", GetEntityPosition);
@@ -135,10 +137,13 @@ public:
 
 	void Update(double DeltaTime, uint64_t EllapsedTime)
 	{
-		for (auto AnEntity : GetSystemEntities())
+		for (auto e : entities)
 		{
-			const auto Script = AnEntity.GetComponent<ScriptComponent>();
-			Script.Funct(AnEntity, DeltaTime, EllapsedTime);
+			const auto& script = e.get<ScriptComponent>();
+			script.Funct(e, DeltaTime, EllapsedTime);
 		}
 	}
+
+private:
+	std::vector<flecs::entity> entities;
 };
