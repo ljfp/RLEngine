@@ -1,27 +1,18 @@
 #pragma once
 
-#include "../ECS/ECS.hpp"
+#include <flecs.h>
 #include "../Components/AnimationComponent.hpp"
 #include "../Components/SpriteComponent.hpp"
 
-class AnimationSystem : public System
+class AnimationSystem
 {
 public:
-	AnimationSystem()
-	{
-		RequireComponent<AnimationComponent>();
-		RequireComponent<SpriteComponent>();
-	}
-
-	void Update()
-	{
-		for (Entity AnEntity : GetSystemEntities())
-		{
-			AnimationComponent& Animation = AnEntity.GetComponent<AnimationComponent>();
-			SpriteComponent& Sprite = AnEntity.GetComponent<SpriteComponent>();
-
-			Animation.CurrentFrame = ((SDL_GetTicks() - Animation.StartTime) * Animation.FramesPerSecond / 1000) % Animation.TotalFrames;
-			Sprite.SrcRect.x = Sprite.SrcRect.w * Animation.CurrentFrame;
-		}
-	}
+    AnimationSystem(flecs::world& ecs)
+    {
+        ecs.system<AnimationComponent, SpriteComponent>()
+            .each([](flecs::entity e, AnimationComponent& animation, SpriteComponent& sprite) {
+                animation.CurrentFrame = ((SDL_GetTicks() - animation.StartTime) * animation.FramesPerSecond / 1000) % animation.TotalFrames;
+                sprite.SrcRect.x = sprite.SrcRect.w * animation.CurrentFrame;
+            });
+    }
 };

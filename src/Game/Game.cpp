@@ -1,6 +1,5 @@
 #include "Game.hpp"
 #include "LevelLoader.hpp"
-#include "../ECS/ECS.hpp"
 #include "../Systems/AnimationSystem.hpp"
 #include "../Systems/CameraFollowSystem.hpp"
 #include "../Systems/CollisionSystem.hpp"
@@ -23,8 +22,7 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_sdl2.h>
 #include <imgui/imgui_impl_sdlrenderer2.h>
-// TODO: remove this when gcc has stable support for C++23
-//#include <stdfloat>
+#include <flecs.h>
 
 uint16_t Game::WindowWidth;
 uint16_t Game::WindowHeight;
@@ -35,7 +33,7 @@ Game::Game()
 {
 	IsRunning = false;
 	IsDebug = false;
-	GameRegistry = std::make_unique<Registry>();
+	GameRegistry = std::make_unique<flecs::world>();
 	GameAssetManager = std::make_unique<AssetManager>();
 	GameEventBus = std::make_unique<EventBus>();
 	spdlog::info("Game is running.");
@@ -48,7 +46,7 @@ Game::~Game()
 
 void Game::Initialize()
 {
-		if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
+	if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
 	{
 		spdlog::error("Error initializing SDL.");
 		return;
@@ -147,23 +145,23 @@ void Game::ProcessInput()
 void Game::Setup()
 {
 	// Add the systems that need to be processed in our game
-	GameRegistry->AddSystem<MovementSystem>();
-	GameRegistry->AddSystem<RenderSystem>();
-	GameRegistry->AddSystem<AnimationSystem>();
-	GameRegistry->AddSystem<CollisionSystem>();
-	GameRegistry->AddSystem<RenderColliderSystem>();
-	GameRegistry->AddSystem<DamageSystem>();
-	GameRegistry->AddSystem<KeyboardControlSystem>();
-	GameRegistry->AddSystem<CameraFollowSystem>();
-	GameRegistry->AddSystem<ProjectileEmitterSystem>();
-	GameRegistry->AddSystem<ProjectileLifecycleSystem>();
-	GameRegistry->AddSystem<RenderTextSystem>();
-	GameRegistry->AddSystem<RenderHealthBarSystem>();
-	GameRegistry->AddSystem<RenderDebugGUISystem>();
-	GameRegistry->AddSystem<ScriptSystem>();
+	GameRegistry->system<MovementSystem>();
+	GameRegistry->system<RenderSystem>();
+	GameRegistry->system<AnimationSystem>();
+	GameRegistry->system<CollisionSystem>();
+	GameRegistry->system<RenderColliderSystem>();
+	GameRegistry->system<DamageSystem>();
+	GameRegistry->system<KeyboardControlSystem>();
+	GameRegistry->system<CameraFollowSystem>();
+	GameRegistry->system<ProjectileEmitterSystem>();
+	GameRegistry->system<ProjectileLifecycleSystem>();
+	GameRegistry->system<RenderTextSystem>();
+	GameRegistry->system<RenderHealthBarSystem>();
+	GameRegistry->system<RenderDebugGUISystem>();
+	GameRegistry->system<ScriptSystem>();
 
 	// Create the bindings between C++ and Lua
-	GameRegistry->GetSystem<ScriptSystem>().CreateLuaBindings(LuaState);
+	GameRegistry->get<ScriptSystem>().CreateLuaBindings(LuaState);
 
 	LevelLoader Loader;
 	LuaState.open_libraries(sol::lib::base, sol::lib::math, sol::lib::os);
@@ -191,22 +189,22 @@ void Game::Update()
 	GameEventBus->Reset();
 
 	// Perform the subscription of the events for all systems
-	GameRegistry->GetSystem<DamageSystem>().SubscribeToEvents(GameEventBus);
-	GameRegistry->GetSystem<KeyboardControlSystem>().SubscribeToEvents(GameEventBus);
-	GameRegistry->GetSystem<MovementSystem>().SubscribeToEvents(GameEventBus);
-	GameRegistry->GetSystem<ProjectileEmitterSystem>().SubscribeToEvents(GameEventBus);
+	GameRegistry->get<DamageSystem>().SubscribeToEvents(GameEventBus);
+	GameRegistry->get<KeyboardControlSystem>().SubscribeToEvents(GameEventBus);
+	GameRegistry->get<MovementSystem>().SubscribeToEvents(GameEventBus);
+	GameRegistry->get<ProjectileEmitterSystem>().SubscribeToEvents(GameEventBus);
 
 	// Update the registry to process the entities that are waiting to be created/deleted
-	GameRegistry->Update();
+	GameRegistry->progress();
 
 	// Invoke all systems that need to update
-	GameRegistry->GetSystem<MovementSystem>().Update(DeltaTime);
-	GameRegistry->GetSystem<ProjectileEmitterSystem>().Update(GameRegistry);
-	GameRegistry->GetSystem<AnimationSystem>().Update();
-	GameRegistry->GetSystem<CollisionSystem>().Update(GameEventBus);
-	GameRegistry->GetSystem<CameraFollowSystem>().Update(Camera);
-	GameRegistry->GetSystem<ProjectileLifecycleSystem>().Update();
-	GameRegistry->GetSystem<ScriptSystem>().Update(DeltaTime, SDL_GetTicks64());
+	GameRegistry->get<MovementSystem>().Update(DeltaTime);
+	GameRegistry->get<ProjectileEmitterSystem>().Update(GameRegistry);
+	GameRegistry->get<AnimationSystem>().Update();
+	GameRegistry->get<CollisionSystem>().Update(GameEventBus);
+	GameRegistry->get<CameraFollowSystem>().Update(Camera);
+	GameRegistry->get<ProjectileLifecycleSystem>().Update();
+	GameRegistry->get<ScriptSystem>().Update(DeltaTime, SDL_GetTicks64());
 
 }
 
@@ -216,13 +214,13 @@ void Game::Render()
 	SDL_RenderClear(Renderer);
 
 	// Invoke all the systems that need to render
-	GameRegistry->GetSystem<RenderSystem>().Update(Renderer, GameAssetManager, Camera);
-	GameRegistry->GetSystem<RenderTextSystem>().Update(Renderer, GameAssetManager, Camera);
-	GameRegistry->GetSystem<RenderHealthBarSystem>().Update(Renderer, GameAssetManager, Camera);
+	GameRegistry->get<RenderSystem>().Update(Renderer, GameAssetManager, Camera);
+	GameRegistry->get<RenderTextSystem>().Update(Renderer, GameAssetManager, Camera);
+	GameRegistry->get<RenderHealthBarSystem>().Update(Renderer, GameAssetManager, Camera);
 	if (IsDebug)
 	{
-		GameRegistry->GetSystem<RenderColliderSystem>().Update(Renderer, Camera);
-		GameRegistry->GetSystem<RenderDebugGUISystem>().Update(Renderer, GameRegistry, Camera);
+		GameRegistry->get<RenderColliderSystem>().Update(Renderer, Camera);
+		GameRegistry->get<RenderDebugGUISystem>().Update(Renderer, GameRegistry, Camera);
 	}
 
 	SDL_RenderPresent(Renderer);

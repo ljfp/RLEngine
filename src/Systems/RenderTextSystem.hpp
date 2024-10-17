@@ -1,44 +1,56 @@
 #pragma once
 
 #include "../AssetManager/AssetManager.hpp"
-#include "../ECS/ECS.hpp"
 #include "../Components/TextLabelComponent.hpp"
 #include <SDL2/SDL.h>
+#include <flecs.h>
 
-class RenderTextSystem : public System
+class RenderTextSystem
 {
 public:
-	RenderTextSystem() { RequireComponent<TextLabelComponent>(); }
+    RenderTextSystem(flecs::world& ecs)
+    {
+        ecs.system<TextLabelComponent>()
+            .each([this](flecs::entity e, TextLabelComponent& textLabel) {
+                UpdateEntity(e, textLabel);
+            });
+    }
 
-	void Update(SDL_Renderer* Renderer, std::unique_ptr<AssetManager>& AssetManager, const SDL_Rect& Camera)
-	{
-		for (auto AnEntity : GetSystemEntities())
-		{
-			const auto ATextLabel = AnEntity.GetComponent<TextLabelComponent>();
+    void Update(SDL_Renderer* Renderer, std::unique_ptr<AssetManager>& AssetManager, const SDL_Rect& Camera)
+    {
+        auto entities = e.world().filter<TextLabelComponent>();
 
-			SDL_Surface* TextSurface = TTF_RenderText_Blended
-			(
-				AssetManager->GetFont(ATextLabel.AssetID),
-				ATextLabel.Text.c_str(),
-				ATextLabel.Color
-			);
+        for (auto entity : entities)
+        {
+            const auto& textLabel = entity.get<TextLabelComponent>();
 
-			SDL_Texture* TextTexture = SDL_CreateTextureFromSurface(Renderer, TextSurface);
-			SDL_FreeSurface(TextSurface);
+            SDL_Surface* textSurface = TTF_RenderText_Blended(
+                AssetManager->GetFont(textLabel.AssetID),
+                textLabel.Text.c_str(),
+                textLabel.Color
+            );
 
-			int LabelWidth = 0, LabelHeight = 0;
-			SDL_QueryTexture(TextTexture, nullptr, nullptr, &LabelWidth, &LabelHeight);
+            SDL_Texture* textTexture = SDL_CreateTextureFromSurface(Renderer, textSurface);
+            SDL_FreeSurface(textSurface);
 
-			SDL_Rect DestinationRectangle =
-			{
-				static_cast<int>(ATextLabel.Position.x - (ATextLabel.IsFixed ? 0 : Camera.x)),
-				static_cast<int>(ATextLabel.Position.y - (ATextLabel.IsFixed ? 0 : Camera.y)),
-				LabelWidth,
-				LabelHeight
-			};
+            int labelWidth = 0, labelHeight = 0;
+            SDL_QueryTexture(textTexture, nullptr, nullptr, &labelWidth, &labelHeight);
 
-			SDL_RenderCopy(Renderer, TextTexture, nullptr, &DestinationRectangle);
-			SDL_DestroyTexture(TextTexture);
-		}
-	}
+            SDL_Rect destinationRectangle = {
+                static_cast<int>(textLabel.Position.x - (textLabel.IsFixed ? 0 : Camera.x)),
+                static_cast<int>(textLabel.Position.y - (textLabel.IsFixed ? 0 : Camera.y)),
+                labelWidth,
+                labelHeight
+            };
+
+            SDL_RenderCopy(Renderer, textTexture, nullptr, &destinationRectangle);
+            SDL_DestroyTexture(textTexture);
+        }
+    }
+
+private:
+    void UpdateEntity(flecs::entity e, TextLabelComponent& textLabel)
+    {
+        // This function is intentionally left empty as the actual rendering is done in the Update function.
+    }
 };

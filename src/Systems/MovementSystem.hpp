@@ -1,89 +1,88 @@
 #pragma once
 
-#include "../ECS/ECS.hpp"
+#include <flecs.h>
 #include "../Components/RigidBodyComponent.hpp"
 #include "../Components/SpriteComponent.hpp"
 #include "../Components/TransformComponent.hpp"
 #include "../EventBus/EventBus.hpp"
 #include "../Events/CollisionEvent.hpp"
 
-class MovementSystem : public System
+class MovementSystem
 {
 public:
-	MovementSystem()
+	MovementSystem(flecs::world& ecs)
 	{
-		RequireComponent<TransformComponent>();
-		RequireComponent<RigidBodyComponent>();
+		ecs.system<TransformComponent, RigidBodyComponent>()
+			.each([this](flecs::entity e, TransformComponent& transform, RigidBodyComponent& rigidBody) {
+				UpdateEntity(e, transform, rigidBody);
+			});
+
+		ecs.observer<CollisionEvent>()
+			.event<CollisionEvent>()
+			.each([this](flecs::entity e, CollisionEvent& event) {
+				OnCollision(event);
+			});
 	}
 
-	void SubscribeToEvents(const std::unique_ptr<EventBus>& EventBus)
+	void UpdateEntity(flecs::entity e, TransformComponent& transform, RigidBodyComponent& rigidBody)
 	{
-		EventBus->SubscribeToEvent<CollisionEvent>(this, &MovementSystem::OnCollision);
-	}
+		double DeltaTime = e.world().delta_time();
 
-	void Update(double DeltaTime)
-	{
-		for (auto entity : GetSystemEntities())
+		transform.Position.x += rigidBody.Velocity.x * DeltaTime;
+		transform.Position.y += rigidBody.Velocity.y * DeltaTime;
+
+		// Prevent the player from moving outside the map.
+		if (e.has<TagComponent<Player>>())
 		{
-			auto& transform = entity.GetComponent<TransformComponent>();
-			const auto& rigidBody = entity.GetComponent<RigidBodyComponent>();
+			uint8_t PaddingLeft = 10;
+			uint8_t PaddingTop = 10;
+			uint8_t PaddingRight = 50;
+			uint8_t PaddingBottom = 50;
+			transform.Position.x = transform.Position.x < PaddingLeft ? PaddingLeft : transform.Position.x;
+			transform.Position.x = transform.Position.x > Game::MapWidth - PaddingRight ? Game::MapWidth - PaddingRight : transform.Position.x;
+			transform.Position.y = transform.Position.y < PaddingTop ? PaddingTop : transform.Position.y;
+			transform.Position.y = transform.Position.y > Game::MapHeight - PaddingBottom ? Game::MapHeight - PaddingBottom : transform.Position.y;
+		}
 
-			transform.Position.x += rigidBody.Velocity.x * DeltaTime;
-			transform.Position.y += rigidBody.Velocity.y * DeltaTime;
+		uint8_t Padding = 100; // In pixels
+		bool IsEntityOutsideOfBounds =
+		(
+			transform.Position.x < -Padding ||
+			transform.Position.x > Game::MapWidth + Padding ||
+			transform.Position.y < -Padding ||
+			transform.Position.y > Game::MapHeight + Padding
+		);
 
-			// Prevent the player from moving outside the map.
-			if (entity.HasTag("Player"))
-			{
-				uint8_t PaddingLeft = 10;
-				uint8_t PaddingTop = 10;
-				uint8_t PaddingRight = 50;
-				uint8_t PaddingBottom = 50;
-				transform.Position.x = transform.Position.x < PaddingLeft ? PaddingLeft : transform.Position.x;
-				transform.Position.x = transform.Position.x > Game::MapWidth - PaddingRight ? Game::MapWidth - PaddingRight : transform.Position.x;
-				transform.Position.y = transform.Position.y < PaddingTop ? PaddingTop : transform.Position.y;
-				transform.Position.y = transform.Position.y > Game::MapHeight - PaddingBottom ? Game::MapHeight - PaddingBottom : transform.Position.y;
-			}
-
-			uint8_t Padding = 100; // In pixels
-			bool IsEntityOutsideOfBounds =
-			(
-				transform.Position.x < -Padding ||
-				transform.Position.x > Game::MapWidth + Padding ||
-				transform.Position.y < -Padding ||
-				transform.Position.y > Game::MapHeight + Padding
-			);
-
-			// Kill all entites that move outside of the map boundaries.
-			if (IsEntityOutsideOfBounds && !entity.HasTag("Player"))
-			{
-				entity.Kill();
-			}
+		// Kill all entities that move outside of the map boundaries.
+		if (IsEntityOutsideOfBounds && !e.has<TagComponent<Player>>())
+		{
+			e.destruct();
 		}
 	}
 
 	void OnCollision(CollisionEvent& Event)
 	{
-		Entity EntityA = Event.A;
-		Entity EntityB = Event.B;
-		spdlog::info("The damage system received an event collision between entities {} and {}", EntityA.GetID(), EntityB.GetID());
+		flecs::entity EntityA = Event.A;
+		flecs::entity EntityB = Event.B;
+		spdlog::info("The damage system received an event collision between entities {} and {}", EntityA.id(), EntityB.id());
 
-		if (EntityA.BelongsToGroup("Enemies") && EntityB.BelongsToGroup("Obstacles"))
+		if (EntityA.has<TagComponent<Enemy>>() && EntityB.has<TagComponent<Obstacle>>())
 		{
 			OnEnemyHitsObstacle(EntityA, EntityB);
 		}
 
-		if (EntityA.BelongsToGroup("Obstacles") && EntityB.BelongsToGroup("Enemies"))
+		if (EntityA.has<TagComponent<Obstacle>>() && EntityB.has<TagComponent<Enemy>>())
 		{
 			OnEnemyHitsObstacle(EntityB, EntityA);
 		}
 	}
 
-	void OnEnemyHitsObstacle(Entity Enemy, Entity Obstacle)
+	void OnEnemyHitsObstacle(flecs::entity Enemy, flecs::entity Obstacle)
 	{
-		if (Enemy.HasComponent<RigidBodyComponent>() && Enemy.HasComponent<SpriteComponent>())
+		if (Enemy.has<RigidBodyComponent>() && Enemy.has<SpriteComponent>())
 		{
-			auto& RigidBody = Enemy.GetComponent<RigidBodyComponent>();
-			auto& Sprite = Enemy.GetComponent<SpriteComponent>();
+			auto& RigidBody = Enemy.get_mut<RigidBodyComponent>();
+			auto& Sprite = Enemy.get_mut<SpriteComponent>();
 
 			if (RigidBody.Velocity.x != 0)
 			{
