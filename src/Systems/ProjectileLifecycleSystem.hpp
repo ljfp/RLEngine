@@ -1,26 +1,20 @@
 #pragma once
 
-#include "../ECS/ECS.hpp"
+#include <flecs.h>
 #include "../Components/ProjectileComponent.hpp"
 #include <SDL2/SDL.h>
 
-class ProjectileLifecycleSystem : public System
+class ProjectileLifecycleSystem
 {
 public:
-	ProjectileLifecycleSystem()
-	{
-		RequireComponent<ProjectileComponent>();
-	}
-
-	void Update()
-	{
-		for (auto Entity : GetSystemEntities())
-		{
-			auto& AProjectile = Entity.GetComponent<ProjectileComponent>();
-			if (SDL_GetTicks() - AProjectile.StartTime > AProjectile.Duration)
-			{
-				Entity.Kill();
-			}
-		}
-	}
+    ProjectileLifecycleSystem(flecs::world& ecs)
+    {
+        ecs.system<ProjectileComponent>()
+            .each([](flecs::entity e, ProjectileComponent& projectile) {
+                if (SDL_GetTicks() - projectile.StartTime > projectile.Duration)
+                {
+                    e.destruct();
+                }
+            });
+    }
 };
