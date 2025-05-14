@@ -80,7 +80,8 @@ void Game::Initialize()
 		spdlog::warn("There's a proble getting display height (0 or negative value).");
 	}
 
-	Window = SDL_CreateWindow("RoguelikeEngine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WindowWidth, WindowHeight, SDL_WINDOW_BORDERLESS);
+	// Create window with fixed resolution that matches our camera size
+	Window = SDL_CreateWindow("RoguelikeEngine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1024, 768, SDL_WINDOW_VULKAN);
 	if (!Window)
 	{
 		spdlog::error("Error creating SDL window.");
@@ -101,9 +102,9 @@ void Game::Initialize()
 	ImGui_ImplSDLRenderer2_Init(Renderer);
 
 	// Initialize the camera with the entire screen area
-	Camera = { 0, 0, WindowWidth, WindowHeight };
+	Camera = { 0, 0, 1024, 768 };
 
-	SDL_SetWindowFullscreen(Window, SDL_WINDOW_FULLSCREEN);
+	SDL_SetWindowFullscreen(Window, 0);
 	IsRunning = true;
 }
 

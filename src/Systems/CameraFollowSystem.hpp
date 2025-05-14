@@ -23,8 +23,7 @@ public:
 		for (auto AnEntity : Entities)
 		{
 			auto ATransform = AnEntity.GetComponent<TransformComponent>();
-
-			// Camera follow logic here
+			// Camera follow logic here - center player on screen
 			Camera.x = glm::clamp(
 				static_cast<int>(ATransform.Position.x - Camera.w / 2),
 				0,

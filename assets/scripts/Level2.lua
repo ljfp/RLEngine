@@ -138,7 +138,7 @@ Level = {
 					left_velocity = { x = -30, y = 0 }
 				},
 				camera_follow = {
-					follow = true
+					follow = false
 				}
 			}
 		},
@@ -576,7 +576,7 @@ Level = {
 				}
 			}
 		},
-		
+
 		{
 			-- SAM Tank
 			group = "Enemies",
