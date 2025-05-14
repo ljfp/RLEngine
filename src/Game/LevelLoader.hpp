@@ -2,6 +2,7 @@
 
 #include "../AssetManager/AssetManager.hpp"
 #include "../ECS/ECS.hpp"
+#include "../ECS/FlecsBridge.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -15,5 +16,8 @@ public:
 	~LevelLoader();
 
 	void LoadLevel(sol::state& LuaState, const std::unique_ptr<Registry>& Registry, const std::unique_ptr<AssetManager>& AssetManager, SDL_Renderer* Renderer, uint8_t LevelNumber);
+	
+	// New method for FlecsBridge
+	void LoadLevel(sol::state& LuaState, const std::unique_ptr<FlecsBridge>& Registry, const std::unique_ptr<AssetManager>& AssetManager, SDL_Renderer* Renderer, uint8_t LevelNumber);
 private:
 };

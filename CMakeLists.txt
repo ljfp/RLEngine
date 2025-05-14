@@ -5,9 +5,14 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O2 -ggdb")
 
+# Define Flecs as a static library with its implementation
+add_library(flecs STATIC "${CMAKE_SOURCE_DIR}/third_party/flecs/flecs.c")
+target_include_directories(flecs PUBLIC "${CMAKE_SOURCE_DIR}/third_party/flecs")
+
 include_directories(
 	"./third_party/"
 	"./third_party/lua/"
+	"./third_party/flecs/"
 )
 
 file(GLOB_RECURSE SOURCES
@@ -19,7 +24,15 @@ file(GLOB_RECURSE SOURCES
 
 add_executable(RLEngine ${SOURCES})
 
+# Add Flecs example
+add_executable(FlecsDirect examples/FlecsDirect.cpp)
+target_link_libraries(FlecsDirect flecs)
+
 set_target_properties(RLEngine PROPERTIES
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+)
+
+set_target_properties(FlecsDirect PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 )
 
@@ -30,6 +43,7 @@ if (WIN32)
 		"${CMAKE_SOURCE_DIR}/lib/SDL2_image.lib"
 		"${CMAKE_SOURCE_DIR}/lib/SDL2_ttf.lib"
 		"${CMAKE_SOURCE_DIR}/lib/lua54.lib"
+		flecs
 	)
 
 	add_custom_command(TARGET RLEngine POST_BUILD
@@ -55,6 +69,7 @@ elseif (UNIX)
 		${SDL2_IMAGE_LIBRARIES}
 		${SDL2_TTF_LIBRARIES}
 		${LUA_LIBRARIES}
+		flecs
 	)
 endif()
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT RLEngine)

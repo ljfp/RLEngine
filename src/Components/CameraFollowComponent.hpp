@@ -1,7 +1,12 @@
 #pragma once
 
-
 struct CameraFollowComponent
 {
-	CameraFollowComponent() = default;
+	// Add at least one data member to prevent Flecs crash with empty components
+	bool Follow;
+	
+	CameraFollowComponent(bool Follow = true)
+	{
+		this->Follow = Follow;
+	}
 };

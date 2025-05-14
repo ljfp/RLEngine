@@ -1,20 +1,32 @@
 #include "Game.hpp"
-#include "LevelLoader.hpp"
-#include "../ECS/ECS.hpp"
-#include "../Systems/AnimationSystem.hpp"
-#include "../Systems/CameraFollowSystem.hpp"
-#include "../Systems/CollisionSystem.hpp"
-#include "../Systems/DamageSystem.hpp"
-#include "../Systems/KeyboardControlSystem.hpp"
-#include "../Systems/MovementSystem.hpp"
-#include "../Systems/RenderColliderSystem.hpp"
-#include "../Systems/RenderDebugGUISystem.hpp"
-#include "../Systems/RenderHealthBarSystem.hpp"
-#include "../Systems/RenderTextSystem.hpp"
+#include "../AssetManager/AssetManager.hpp"
+#include "../EventBus/EventBus.hpp"
+#include "../Events/CollisionEvent.hpp"
+#include "../Events/KeyPressedEvent.hpp"
+#include "../Systems/MovementSystemFlecs.hpp"
 #include "../Systems/RenderSystem.hpp"
-#include "../Systems/ProjectileEmitterSystem.hpp"
+#include "../Systems/RenderSystemFlecs.hpp"
+#include "../Systems/AnimationSystem.hpp"
+#include "../Systems/CollisionSystem.hpp"
+#include "../Systems/RenderColliderSystem.hpp"
+#include "../Systems/DamageSystem.hpp"
+#include "../Systems/KeyboardControlSystemFlecs.hpp"
+#include "../Systems/CameraFollowSystem.hpp"
+#include "../Systems/ProjectileEmitterSystemFlecs.hpp"
 #include "../Systems/ProjectileLifecycleSystem.hpp"
+#include "../Systems/RenderTextSystem.hpp"
+#include "../Systems/RenderHealthBarSystem.hpp"
 #include "../Systems/ScriptSystem.hpp"
+#include "../Systems/RenderDebugGUISystemFlecs.hpp"
+#include "../Systems/DirectFlecsSystem.hpp"
+#include "LevelLoader.hpp"
+#include <SDL_ttf.h>
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_sdl2.h>
+#include <imgui/imgui_impl_sdlrenderer2.h>
+#include <glm/gtc/type_ptr.hpp>
+#include <flecs.h>
+//#include <flecs/flecs/flecs.meta.h>
 
 #include <SDL2/SDL_image.h>
 #include <spdlog/spdlog.h>
@@ -35,7 +47,7 @@ Game::Game()
 {
 	IsRunning = false;
 	IsDebug = false;
-	GameRegistry = std::make_unique<Registry>();
+	GameRegistry = std::make_unique<FlecsBridge>();
 	GameAssetManager = std::make_unique<AssetManager>();
 	GameEventBus = std::make_unique<EventBus>();
 	spdlog::info("Game is running.");
@@ -77,7 +89,7 @@ void Game::Initialize()
 	}
 	else
 	{
-		spdlog::warn("There's a proble getting display height (0 or negative value).");
+		spdlog::warn("There's a problem getting display height (0 or negative value).");
 	}
 
 	// Create window with fixed resolution that matches our camera size
@@ -145,23 +157,118 @@ void Game::ProcessInput()
 	}
 }
 
+// Register custom types with Flecs for proper reflection
+void RegisterCustomTypes(flecs::world& world) {
+    spdlog::info("Registering custom types with Flecs");
+    
+    // Register glm::vec2
+    world.component<glm::vec2>()
+        .member<float>("x")
+        .member<float>("y");
+    
+    // Register SDL_Rect
+    world.component<SDL_Rect>()
+        .member<int>("x")
+        .member<int>("y")
+        .member<int>("w")
+        .member<int>("h");
+    
+    // Register SDL_RendererFlip as an enum
+    world.component<SDL_RendererFlip>();
+    
+    // For std::string, we'll just register it and ignore the errors
+    // Since we're implementing a bridge pattern, we don't need full
+    // reflection support for all types
+    world.component<std::string>();
+}
+
+// Register component types directly with Flecs
+void RegisterComponents(flecs::world& world) {
+    spdlog::info("Registering components with Flecs");
+    
+    // Register core components
+    world.component<TransformComponent>()
+        .member<glm::vec2>("Position")
+        .member<glm::vec2>("Scale")
+        .member<double>("Rotation");
+
+    world.component<RigidBodyComponent>()
+        .member<glm::vec2>("Velocity");
+    
+    world.component<SpriteComponent>()
+        .member<std::string>("AssetID")
+        .member<uint16_t>("Width")
+        .member<uint16_t>("Height")
+        .member<uint8_t>("ZIndex")
+        .member<bool>("IsFixed")
+        .member<SDL_RendererFlip>("Flip")
+        .member<SDL_Rect>("SrcRect");
+        
+    // Register remaining components without the incorrect macro
+    world.component<AnimationComponent>();
+    world.component<BoxColliderComponent>();
+    world.component<ProjectileComponent>();
+    world.component<ProjectileEmitterComponent>();
+    world.component<CameraFollowComponent>();
+    world.component<KeyboardControlComponent>();
+    world.component<HealthComponent>();
+    world.component<TextLabelComponent>();
+    world.component<ScriptComponent>();
+}
+
 void Game::Setup()
 {
-	// Add the systems that need to be processed in our game
-	GameRegistry->AddSystem<MovementSystem>();
-	GameRegistry->AddSystem<RenderSystem>();
+	// Register custom types and components with Flecs world
+	RegisterCustomTypes(GameRegistry->GetWorld());
+	RegisterComponents(GameRegistry->GetWorld());
+	
+	// Create core systems groups in Flecs
+    GameRegistry->GetWorld().entity("Projectiles");
+
+    GameRegistry->GetWorld().entity("Enemies");
+
+    GameRegistry->GetWorld().entity("Obstacles");
+
+    GameRegistry->GetWorld().entity("Player");
+    
+    // Add and initialize movement system
+    MovementSystemFlecs& movementSystem = GameRegistry->AddSystem<MovementSystemFlecs>();
+    movementSystem.SetWorld(&GameRegistry->GetWorld());
+    
+    // Add Flecs render system
+    GameRegistry->AddSystem<RenderSystemFlecs>();
+    // Set world reference for render system
+    GameRegistry->GetSystem<RenderSystemFlecs>().SetWorld(&GameRegistry->GetWorld());
+    
+    // Add basic systems
 	GameRegistry->AddSystem<AnimationSystem>();
 	GameRegistry->AddSystem<CollisionSystem>();
 	GameRegistry->AddSystem<RenderColliderSystem>();
 	GameRegistry->AddSystem<DamageSystem>();
-	GameRegistry->AddSystem<KeyboardControlSystem>();
+	
+	// Add and initialize keyboard control system
+	KeyboardControlSystemFlecs& keyboardSystem = GameRegistry->AddSystem<KeyboardControlSystemFlecs>();
+	keyboardSystem.SetWorld(&GameRegistry->GetWorld());
+	
 	GameRegistry->AddSystem<CameraFollowSystem>();
-	GameRegistry->AddSystem<ProjectileEmitterSystem>();
+	
+	// Add and initialize projectile system
+    ProjectileEmitterSystemFlecs& projectileSystem = GameRegistry->AddSystem<ProjectileEmitterSystemFlecs>();
+    projectileSystem.SetWorld(&GameRegistry->GetWorld());
+    
+    // More basic systems
 	GameRegistry->AddSystem<ProjectileLifecycleSystem>();
 	GameRegistry->AddSystem<RenderTextSystem>();
 	GameRegistry->AddSystem<RenderHealthBarSystem>();
-	GameRegistry->AddSystem<RenderDebugGUISystem>();
-	GameRegistry->AddSystem<ScriptSystem>();
+	
+	// Add debug GUI system
+    GameRegistry->AddSystem<RenderDebugGUISystemFlecs>();
+
+	// Add script system
+    GameRegistry->AddSystem<ScriptSystem>();
+
+	// Register systems directly with Flecs 
+	DirectFlecsSystem::RegisterSystems(GameRegistry->GetWorld());
 
 	// Create the bindings between C++ and Lua
 	GameRegistry->GetSystem<ScriptSystem>().CreateLuaBindings(LuaState);
@@ -183,9 +290,7 @@ void Game::Update()
 		}
 	}
 
-	// TODO: replace double with std::float64_t when gcc has stable support for C++23
 	double DeltaTime = (SDL_GetTicks64() - MillisecondsPreviousFrame) / 1000.0;
-
 	MillisecondsPreviousFrame = SDL_GetTicks64();
 
 	// Reset all event handlers for the current frame
@@ -193,22 +298,21 @@ void Game::Update()
 
 	// Perform the subscription of the events for all systems
 	GameRegistry->GetSystem<DamageSystem>().SubscribeToEvents(GameEventBus);
-	GameRegistry->GetSystem<KeyboardControlSystem>().SubscribeToEvents(GameEventBus);
-	GameRegistry->GetSystem<MovementSystem>().SubscribeToEvents(GameEventBus);
-	GameRegistry->GetSystem<ProjectileEmitterSystem>().SubscribeToEvents(GameEventBus);
+	GameRegistry->GetSystem<KeyboardControlSystemFlecs>().SubscribeToEvents(GameEventBus);
+	GameRegistry->GetSystem<MovementSystemFlecs>().SubscribeToEvents(GameEventBus);
+	GameRegistry->GetSystem<ProjectileEmitterSystemFlecs>().SubscribeToEvents(GameEventBus);
 
 	// Update the registry to process the entities that are waiting to be created/deleted
 	GameRegistry->Update();
 
 	// Invoke all systems that need to update
-	GameRegistry->GetSystem<MovementSystem>().Update(DeltaTime);
-	GameRegistry->GetSystem<ProjectileEmitterSystem>().Update(GameRegistry);
+	GameRegistry->GetSystem<MovementSystemFlecs>().Update(DeltaTime);
+	GameRegistry->GetSystem<ProjectileEmitterSystemFlecs>().Update(GameRegistry);
 	GameRegistry->GetSystem<AnimationSystem>().Update();
 	GameRegistry->GetSystem<CollisionSystem>().Update(GameEventBus);
 	GameRegistry->GetSystem<CameraFollowSystem>().Update(Camera);
 	GameRegistry->GetSystem<ProjectileLifecycleSystem>().Update();
 	GameRegistry->GetSystem<ScriptSystem>().Update(DeltaTime, SDL_GetTicks64());
-
 }
 
 void Game::Render()
@@ -217,14 +321,16 @@ void Game::Render()
 	SDL_RenderClear(Renderer);
 
 	// Invoke all the systems that need to render
-	GameRegistry->GetSystem<RenderSystem>().Update(Renderer, GameAssetManager, Camera);
+	GameRegistry->GetSystem<RenderSystemFlecs>().Update(Renderer, GameAssetManager, Camera, IsDebug);
 	GameRegistry->GetSystem<RenderTextSystem>().Update(Renderer, GameAssetManager, Camera);
 	GameRegistry->GetSystem<RenderHealthBarSystem>().Update(Renderer, GameAssetManager, Camera);
 	if (IsDebug)
 	{
 		GameRegistry->GetSystem<RenderColliderSystem>().Update(Renderer, Camera);
-		GameRegistry->GetSystem<RenderDebugGUISystem>().Update(Renderer, GameRegistry, Camera);
 	}
+	
+	// Always call Debug GUI system, but pass IsDebug flag to let it decide whether to render
+	GameRegistry->GetSystem<RenderDebugGUISystemFlecs>().Update(Renderer, GameRegistry, Camera, IsDebug);
 
 	SDL_RenderPresent(Renderer);
 }

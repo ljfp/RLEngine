@@ -8,13 +8,22 @@ struct ProjectileComponent
 	bool IsFriendly;
 	uint8_t HitPercentDamage;
 	uint16_t Duration;
-	uint16_t StartTime;
+	uint64_t StartTime;
 
 	ProjectileComponent(bool IsFriendly = false, uint8_t HitPercentDamage = 0, uint16_t Duration = 0)
 	{
 		this->IsFriendly = IsFriendly;
 		this->HitPercentDamage = HitPercentDamage;
 		this->Duration = Duration;
-		this->StartTime = SDL_GetTicks();
+		this->StartTime = SDL_GetTicks64();
+	}
+	
+	// Constructor with explicit start time for Flecs component initialization
+	ProjectileComponent(bool IsFriendly, uint8_t HitPercentDamage, uint16_t Duration, uint64_t StartTime)
+	{
+		this->IsFriendly = IsFriendly;
+		this->HitPercentDamage = HitPercentDamage;
+		this->Duration = Duration;
+		this->StartTime = StartTime;
 	}
 };

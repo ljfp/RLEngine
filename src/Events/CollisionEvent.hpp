@@ -3,6 +3,9 @@
 #include "../ECS/ECS.hpp"
 #include "../EventBus/Event.hpp"
 
+// Forward declaration to avoid circular dependency
+class FlecsBridge;
+
 class CollisionEvent : public Event
 {
 public:

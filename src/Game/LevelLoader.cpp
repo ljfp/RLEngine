@@ -30,7 +30,8 @@ LevelLoader::~LevelLoader()
 	spdlog::info("LevelLoader destroyed");
 }
 
-void LevelLoader::LoadLevel(sol::state& LuaState, const std::unique_ptr<Registry>& Registry, const std::unique_ptr<AssetManager>& AssetManager, SDL_Renderer* Renderer, uint8_t LevelNumber)
+// LoadLevel implementation for FlecsBridge
+void LevelLoader::LoadLevel(sol::state& LuaState, const std::unique_ptr<FlecsBridge>& Registry, const std::unique_ptr<AssetManager>& AssetManager, SDL_Renderer* Renderer, uint8_t LevelNumber)
 {
 	// We should check the syntax of the script before executing it.
 	sol::load_result Script = LuaState.load_file("./assets/scripts/Level" + std::to_string(LevelNumber) + ".lua");
@@ -99,7 +100,7 @@ void LevelLoader::LoadLevel(sol::state& LuaState, const std::unique_ptr<Registry
 			// Skip the comma
 			TilemapFile.ignore();
 
-			Entity Tile = Registry->CreateEntity();
+			FlecsBridge::Entity Tile = Registry->CreateEntity();
 			Tile.Group("Tiles");
 			Tile.AddComponent<TransformComponent>(glm::vec2(x * (MapScale * TileSize), y * (MapScale * TileSize)), glm::vec2(MapScale, MapScale), 0.0);
 			Tile.AddComponent<SpriteComponent>(MapTextureAssetID, TileSize, TileSize, 0, false, SourceRectangleX, SourceRectangleY);
@@ -121,7 +122,7 @@ void LevelLoader::LoadLevel(sol::state& LuaState, const std::unique_ptr<Registry
 		}
 
 		sol::table AnEntity = Entities[i];
-		Entity NewEntity = Registry->CreateEntity();
+		FlecsBridge::Entity NewEntity = Registry->CreateEntity();
 
 		// Tag entity if it has a tag.
 		sol::optional<std::string> Tag = AnEntity["tag"];
@@ -251,7 +252,9 @@ void LevelLoader::LoadLevel(sol::state& LuaState, const std::unique_ptr<Registry
 			sol::optional<sol::table> CameraFollow = AnEntity["components"]["camera_follow"];
 			if (CameraFollow != sol::nullopt)
 			{
-				NewEntity.AddComponent<CameraFollowComponent>();
+				NewEntity.AddComponent<CameraFollowComponent>(
+					AnEntity["components"]["camera_follow"]["follow"].get_or(true)
+				);
 			}
 
 			// Check for KeyboardControlComponent
