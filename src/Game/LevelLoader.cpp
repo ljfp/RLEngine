@@ -64,12 +64,12 @@ void LevelLoader::LoadLevel(sol::state& LuaState, const std::unique_ptr<Registry
 		if (AssetType == "texture")
 		{
 			AssetManager->AddTexture(Renderer, Asset["id"], Asset["file"]);
-			spdlog::info("Texture with AssetID {} added to the AssetManager", std::string(Asset["id"]));
+			spdlog::info("Texture with AssetID {} added to the AssetManager", Asset["id"].get<std::string>());
 		}
 		if (AssetType == "font")
 		{
 			AssetManager->AddFont(Asset["id"], Asset["file"], Asset["font_size"]);
-			spdlog::info("Font with AssetID {} and size {} added to the AssetManager", std::string(Asset["id"]), std::string(Asset["font_size"]));
+			spdlog::info("Font with AssetID {} and size {} added to the AssetManager", Asset["id"].get<std::string>(), Asset["font_size"].get<int>());
 		}
 		i++;
 	}
