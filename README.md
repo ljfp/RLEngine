@@ -26,25 +26,31 @@ cd RLEngine
 
 ## Building
 ### Prerequisites
- - CMake
- - A C++ compiler (GCC, Clang, or MSVC)
- - SDL2 development libraries
+ - [CMake](https://cmake.org/) 4.2.0 or newer
+ - A C++ compiler with C++20 support (GCC, Clang, or MSVC)
+ - [Ninja](https://ninja-build.org/) (recommended build tool)
 
 ### Build Instructions
-Configure the project using CMake:
-```
-cmake -B build -S .
+
+Configure the project using CMake presets:
+```sh
+cmake --preset default
 ```
 
 Build the project:
+```sh
+cmake --build build
 ```
+
+By default the project builds in **Debug** mode. To build an optimized release:
+```sh
 cmake --build build --config Release
 ```
 
 ## Running
 
-After building the project, you can run the engine executable:
-```
+After building, the executable and required DLLs are placed in the `bin/` directory:
+```sh
 ./bin/RLEngine.exe
 ```
 
