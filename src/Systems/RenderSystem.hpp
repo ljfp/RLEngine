@@ -6,6 +6,7 @@
 #include "../Components/SpriteComponent.hpp"
 
 #include <SDL3_image/SDL_image.h>
+#include <cmath>
 
 class RenderSystem : public System
 {
@@ -64,14 +65,15 @@ public:
 			const auto Transform = AnEntity.Transform;
 			const auto Sprite = AnEntity.Sprite;
 
-			// Set the source and destination rectangle of our sprite
+			// Set the source and destination rectangle of our sprite.
+			// Round positions to integers to prevent sub-pixel gaps between adjacent tiles.
 			SDL_FRect SourceRectangle = Sprite.SrcRect;
 			SDL_FRect DestinationRectangle =
 			{
-				static_cast<float>(Transform.Position.x - (Sprite.IsFixed ? 0 : Camera.x)),
-				static_cast<float>(Transform.Position.y - (Sprite.IsFixed ? 0 : Camera.y)),
-				static_cast<float>(Sprite.Width * Transform.Scale.x),
-				static_cast<float>(Sprite.Height * Transform.Scale.y)
+				std::round(static_cast<float>(Transform.Position.x - (Sprite.IsFixed ? 0 : Camera.x))),
+				std::round(static_cast<float>(Transform.Position.y - (Sprite.IsFixed ? 0 : Camera.y))),
+				std::ceil(static_cast<float>(Sprite.Width * Transform.Scale.x)),
+				std::ceil(static_cast<float>(Sprite.Height * Transform.Scale.y))
 			};
 
 			SDL_RenderTextureRotated

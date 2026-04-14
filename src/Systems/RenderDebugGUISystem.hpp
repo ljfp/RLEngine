@@ -40,7 +40,7 @@ public:
 			static float ProjectileSpeed = 100.0;
 			static int ProjectileRepeat = 10;
 			static int ProjectileDuration = 10;
-			const char* Sprites[] = { "tank-image", "truck-image" };
+			const char* Sprites[] = { "tank-tiger-right-texture", "truck-ford-right-texture" };
 			static int SelectedSpriteIndex = 0;
 
 			// Section to input enemy sprite texture ID

@@ -176,8 +176,8 @@ void Game::Setup()
 
 void Game::Update()
 {
-	// If we are too fast, wait until the next frame
-	if (CAP_FRAMES)
+	// If we are too fast, wait until the next frame (skip when VSync handles pacing)
+	if (CAP_FRAMES && !VSYNC)
 	{
 		uint16_t TimeToWait = MILISECONDS_PER_FRAME - (SDL_GetTicks() - MillisecondsPreviousFrame);
 		if (TimeToWait > 0 && TimeToWait <= MILISECONDS_PER_FRAME)
