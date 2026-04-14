@@ -6,8 +6,8 @@
 #include <SDL3/SDL.h>
 #include <sol/sol.hpp>
 
-constexpr uint16_t FPS = 30;
-constexpr uint16_t MILISECONDS_PER_FRAME = 1000 / 30;
+constexpr uint16_t FPS = 60;
+constexpr uint16_t MILISECONDS_PER_FRAME = 1000 / 60;
 constexpr bool VSYNC = true;
 constexpr bool CAP_FRAMES = true;
 
