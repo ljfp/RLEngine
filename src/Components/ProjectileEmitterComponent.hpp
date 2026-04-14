@@ -1,7 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 
 struct ProjectileEmitterComponent
 {
@@ -10,7 +10,7 @@ struct ProjectileEmitterComponent
 	uint16_t ProjectileDuration;
 	uint8_t HitPercentDamage;
 	bool IsFriendly;
-	uint16_t LastEmissionTime;
+	uint64_t LastEmissionTime;
 
 	ProjectileEmitterComponent
 	(

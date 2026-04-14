@@ -1,6 +1,6 @@
 #pragma once
 
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 
 struct AnimationComponent
 {
@@ -8,7 +8,7 @@ struct AnimationComponent
 	uint8_t CurrentFrame;
 	uint8_t FramesPerSecond;
 	bool Loop;
-	uint32_t StartTime;
+	uint64_t StartTime;
 
 
 	AnimationComponent(uint8_t TotalFrames = 1, uint8_t FramesPerSecond = 1, bool Loop = true)

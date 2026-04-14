@@ -1,0 +1,33 @@
+{
+	"version": 6,
+	"configurePresets": [
+		{
+			"name": "default",
+			"displayName": "Default",
+			"binaryDir": "${sourceDir}/build",
+			"condition": {
+				"type": "equals",
+				"lhs": "${hostSystemName}",
+				"rhs": "Windows"
+			},
+			"generator": "Visual Studio 18 2026",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug"
+			}
+		},
+		{
+			"name": "linux",
+			"displayName": "Linux / macOS",
+			"binaryDir": "${sourceDir}/build",
+			"condition": {
+				"type": "notEquals",
+				"lhs": "${hostSystemName}",
+				"rhs": "Windows"
+			},
+			"generator": "Ninja",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug"
+			}
+		}
+	]
+}

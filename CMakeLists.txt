@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.24)
 project(RLEngine)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -14,19 +14,55 @@ else()
 	add_compile_options(-Wall)
 endif()
 
-include_directories(
-	"./third_party/"
-	"./third_party/lua/"
+# --- Fetch SDL3 dependencies ---
+include(FetchContent)
+
+FetchContent_Declare(
+	SDL3
+	GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+	GIT_TAG release-3.4.4
+	GIT_SHALLOW TRUE
+	GIT_PROGRESS TRUE
 )
 
+FetchContent_Declare(
+	SDL3_image
+	GIT_REPOSITORY https://github.com/libsdl-org/SDL_image.git
+	GIT_TAG release-3.4.2
+	GIT_SHALLOW TRUE
+	GIT_PROGRESS TRUE
+)
+
+FetchContent_Declare(
+	SDL3_ttf
+	GIT_REPOSITORY https://github.com/libsdl-org/SDL_ttf.git
+	GIT_TAG release-3.2.2
+	GIT_SHALLOW TRUE
+	GIT_PROGRESS TRUE
+)
+
+# Disable optional SDL3_image codecs that require extra tools (NASM for dav1d)
+set(SDLIMAGE_AVIF OFF CACHE BOOL "" FORCE)
+set(SDLIMAGE_JXL OFF CACHE BOOL "" FORCE)
+set(SDLIMAGE_WEBP OFF CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(SDL3 SDL3_image SDL3_ttf)
+
+# --- Source files ---
 file(GLOB_RECURSE SOURCES
 	"./src/*.cpp"
 	"./src/AssetManager/*.cpp"
 	"./src/ECS/*.cpp"
 	"./src/Game/*.cpp"
-	"./third_party/imgui/*.cpp")
+	"./third_party/imgui/*.cpp"
+)
 
 add_executable(RLEngine ${SOURCES})
+
+target_include_directories(RLEngine PRIVATE
+	"${CMAKE_SOURCE_DIR}/third_party"
+	"${CMAKE_SOURCE_DIR}/third_party/lua"
+)
 
 set_target_properties(RLEngine PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
@@ -36,19 +72,19 @@ set_target_properties(RLEngine PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/bin"
 )
 
-target_link_libraries(RLEngine
-	"${CMAKE_SOURCE_DIR}/lib/SDL2.lib"
-	"${CMAKE_SOURCE_DIR}/lib/SDL2main.lib"
-	"${CMAKE_SOURCE_DIR}/lib/SDL2_image.lib"
-	"${CMAKE_SOURCE_DIR}/lib/SDL2_ttf.lib"
+target_link_libraries(RLEngine PRIVATE
+	SDL3::SDL3
+	SDL3_image::SDL3_image
+	SDL3_ttf::SDL3_ttf
 	"${CMAKE_SOURCE_DIR}/lib/lua54.lib"
 )
 
+# Copy runtime DLLs to output directory
 add_custom_command(TARGET RLEngine POST_BUILD
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different
-		"${CMAKE_SOURCE_DIR}/lib/SDL2.dll"
-		"${CMAKE_SOURCE_DIR}/lib/SDL2_image.dll"
-		"${CMAKE_SOURCE_DIR}/lib/SDL2_ttf.dll"
+		$<TARGET_FILE:SDL3::SDL3-shared>
+		$<TARGET_FILE:SDL3_image::SDL3_image-shared>
+		$<TARGET_FILE:SDL3_ttf::SDL3_ttf-shared>
 		"${CMAKE_SOURCE_DIR}/lib/lua54.dll"
 		"${CMAKE_SOURCE_DIR}/bin"
 )

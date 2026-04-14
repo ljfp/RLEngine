@@ -5,7 +5,7 @@
 #include "../Components/TransformComponent.hpp"
 #include "../Components/SpriteComponent.hpp"
 
-#include <SDL2/SDL_image.h>
+#include <SDL3_image/SDL_image.h>
 
 class RenderSystem : public System
 {
@@ -16,7 +16,7 @@ public:
 		RequireComponent<SpriteComponent>();
 	}
 
-	void Update(SDL_Renderer* Renderer, std::unique_ptr<AssetManager>& AssetManager, SDL_Rect& Camera)
+	void Update(SDL_Renderer* Renderer, std::unique_ptr<AssetManager>& AssetManager, SDL_FRect& Camera)
 	{
 		// Create a vector with both Sprite and Transform components of all entities.
 		struct RenderableEntity
@@ -65,16 +65,16 @@ public:
 			const auto Sprite = AnEntity.Sprite;
 
 			// Set the source and destination rectangle of our sprite
-			SDL_Rect SourceRectangle = Sprite.SrcRect;
-			SDL_Rect DestinationRectangle =
+			SDL_FRect SourceRectangle = Sprite.SrcRect;
+			SDL_FRect DestinationRectangle =
 			{
-				static_cast<int>(Transform.Position.x - (Sprite.IsFixed ? 0 : Camera.x)),
-				static_cast<int>(Transform.Position.y - (Sprite.IsFixed ? 0 : Camera.y)),
-				static_cast<int>(Sprite.Width * Transform.Scale.x),
-				static_cast<int>(Sprite.Height * Transform.Scale.y)
+				static_cast<float>(Transform.Position.x - (Sprite.IsFixed ? 0 : Camera.x)),
+				static_cast<float>(Transform.Position.y - (Sprite.IsFixed ? 0 : Camera.y)),
+				static_cast<float>(Sprite.Width * Transform.Scale.x),
+				static_cast<float>(Sprite.Height * Transform.Scale.y)
 			};
 
-			SDL_RenderCopyEx
+			SDL_RenderTextureRotated
 			(
 				Renderer,
 				AssetManager->GetTexture(Sprite.AssetID),

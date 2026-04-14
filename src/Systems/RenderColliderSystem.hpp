@@ -4,7 +4,7 @@
 #include "../Components/BoxColliderComponent.hpp"
 #include "../Components/TransformComponent.hpp"
 
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 
 class RenderColliderSystem : public System
 {
@@ -15,7 +15,7 @@ public:
 		RequireComponent<TransformComponent>();
 	}
 
-	void Update(SDL_Renderer *Renderer, SDL_Rect& Camera)
+	void Update(SDL_Renderer *Renderer, SDL_FRect& Camera)
 	{
 		auto Entities = GetSystemEntities();
 
@@ -24,15 +24,15 @@ public:
 			const auto ATransform = AnEntity.GetComponent<TransformComponent>();
 			const auto ACollider = AnEntity.GetComponent<BoxColliderComponent>();
 
-			SDL_Rect ColliderRect = {
-				static_cast<int>(ATransform.Position.x + ACollider.Offset.x - Camera.x),
-				static_cast<int>(ATransform.Position.y + ACollider.Offset.y - Camera.y),
-				static_cast<int>(ACollider.Width * ATransform.Scale.x),
-				static_cast<int>(ACollider.Height * ATransform.Scale.y)
+			SDL_FRect ColliderRect = {
+				static_cast<float>(ATransform.Position.x + ACollider.Offset.x - Camera.x),
+				static_cast<float>(ATransform.Position.y + ACollider.Offset.y - Camera.y),
+				static_cast<float>(ACollider.Width * ATransform.Scale.x),
+				static_cast<float>(ACollider.Height * ATransform.Scale.y)
 			};
 
 			SDL_SetRenderDrawColor(Renderer, 255, 0, 0, 255);
-			SDL_RenderDrawRect(Renderer, &ColliderRect);
+			SDL_RenderRect(Renderer, &ColliderRect);
 		}
 	}
 };

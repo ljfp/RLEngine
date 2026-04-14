@@ -3,7 +3,7 @@
 #include "../ECS/ECS.hpp"
 #include "../AssetManager/AssetManager.hpp"
 #include "../EventBus/EventBus.hpp"
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 #include <sol/sol.hpp>
 
 constexpr uint16_t FPS = 30;
@@ -32,7 +32,7 @@ public:
 private:
 	SDL_Window *Window;
 	SDL_Renderer *Renderer;
-	SDL_Rect Camera;
+	SDL_FRect Camera;
 	bool IsRunning;
 	bool IsDebug;
 	uint64_t MillisecondsPreviousFrame = 0;

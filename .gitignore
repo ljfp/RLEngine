@@ -6,3 +6,7 @@ imgui.ini
 CMakeSettings.json
 compile_commands.json
 .cache/
+third_party/SDL2/
+third_party/SDL3/
+third_party/SDL3_image/
+third_party/SDL3_ttf/

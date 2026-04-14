@@ -16,13 +16,13 @@
 #include "../Systems/ProjectileLifecycleSystem.hpp"
 #include "../Systems/ScriptSystem.hpp"
 
-#include <SDL2/SDL_image.h>
+#include <SDL3_image/SDL_image.h>
 #include <spdlog/spdlog.h>
 #include <glm/glm.hpp>
 #include <iostream>
 #include <imgui/imgui.h>
-#include <imgui/imgui_impl_sdl2.h>
-#include <imgui/imgui_impl_sdlrenderer2.h>
+#include <imgui/imgui_impl_sdl3.h>
+#include <imgui/imgui_impl_sdlrenderer3.h>
 // TODO: remove this when gcc has stable support for C++23
 //#include <stdfloat>
 
@@ -48,62 +48,66 @@ Game::~Game()
 
 void Game::Initialize()
 {
-		if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
+	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO))
 	{
 		spdlog::error("Error initializing SDL.");
 		return;
 	}
 
-	if (TTF_Init() != 0)
+	if (!TTF_Init())
 	{
 		spdlog::error("Error initializing SDL_TTF.");
 		return;
 	}
 
-	SDL_DisplayMode DisplayMode;
-	SDL_GetCurrentDisplayMode(0, &DisplayMode);
-	if (DisplayMode.w > 0)
+	const SDL_DisplayMode* DisplayMode = SDL_GetCurrentDisplayMode(SDL_GetPrimaryDisplay());
+	if (DisplayMode && DisplayMode->w > 0)
 	{
-		WindowWidth = DisplayMode.w; // Implicit conversion from int to unsigned short
+		WindowWidth = DisplayMode->w;
 	}
 	else
 	{
 		spdlog::warn("There's a problem getting display width (0 or negative value).");
 	}
 
-	if (DisplayMode.h > 0)
+	if (DisplayMode && DisplayMode->h > 0)
 	{
-		WindowHeight = DisplayMode.h; // Implicit conversion from int to unsigned short
+		WindowHeight = DisplayMode->h;
 	}
 	else
 	{
 		spdlog::warn("There's a proble getting display height (0 or negative value).");
 	}
 
-	Window = SDL_CreateWindow("RoguelikeEngine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WindowWidth, WindowHeight, SDL_WINDOW_BORDERLESS);
+	Window = SDL_CreateWindow("RoguelikeEngine", WindowWidth, WindowHeight, SDL_WINDOW_BORDERLESS);
 	if (!Window)
 	{
 		spdlog::error("Error creating SDL window.");
 		return;
 	}
 
-	Renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+	Renderer = SDL_CreateRenderer(Window, NULL);
 	if (!Renderer)
 	{
 		spdlog::error("Error creating SDL renderer.");
 		return;
 	}
 
+	if (VSYNC)
+	{
+		SDL_SetRenderVSync(Renderer, 1);
+	}
+
 	// Initialize Dear ImGui
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	ImGui_ImplSDL2_InitForSDLRenderer(Window, Renderer);
-	ImGui_ImplSDLRenderer2_Init(Renderer);
+	ImGui_ImplSDL3_InitForSDLRenderer(Window, Renderer);
+	ImGui_ImplSDLRenderer3_Init(Renderer);
 
 	// Initialize the camera with the entire screen area
-	Camera = { 0, 0, WindowWidth, WindowHeight };
+	Camera = { 0.0f, 0.0f, static_cast<float>(WindowWidth), static_cast<float>(WindowHeight) };
 
-	SDL_SetWindowFullscreen(Window, SDL_WINDOW_FULLSCREEN);
+	SDL_SetWindowFullscreen(Window, true);
 	IsRunning = true;
 }
 
@@ -113,32 +117,32 @@ void Game::ProcessInput()
 	while (SDL_PollEvent(&Event))
 	{
 		// Handle ImGui events
-		ImGui_ImplSDL2_ProcessEvent(&Event);
+		ImGui_ImplSDL3_ProcessEvent(&Event);
 		ImGuiIO& DebugIO = ImGui::GetIO();
 
-		int MouseX, MouseY;
-		const int MouseButtons = SDL_GetMouseState(&MouseX, &MouseY);
+		float MouseX, MouseY;
+		SDL_MouseButtonFlags MouseButtons = SDL_GetMouseState(&MouseX, &MouseY);
 
 		DebugIO.MousePos = ImVec2(MouseX, MouseY);
-		DebugIO.MouseDown[0] = MouseButtons & SDL_BUTTON(SDL_BUTTON_LEFT);
-		DebugIO.MouseDown[1] = MouseButtons & SDL_BUTTON(SDL_BUTTON_RIGHT);
+		DebugIO.MouseDown[0] = MouseButtons & SDL_BUTTON_MASK(SDL_BUTTON_LEFT);
+		DebugIO.MouseDown[1] = MouseButtons & SDL_BUTTON_MASK(SDL_BUTTON_RIGHT);
 
 		// Handle core SDL events
 		switch (Event.type)
 		{
-		case SDL_QUIT:
+		case SDL_EVENT_QUIT:
 			IsRunning = false;
 			break;
-		case SDL_KEYDOWN:
-			if (Event.key.keysym.sym == SDLK_ESCAPE)
+		case SDL_EVENT_KEY_DOWN:
+			if (Event.key.key == SDLK_ESCAPE)
 			{
 				IsRunning = false;
 			}
-			if (Event.key.keysym.sym == SDLK_d)
+			if (Event.key.key == SDLK_D)
 			{
 				IsDebug = !IsDebug;
 			}
-			GameEventBus->EmitEvent<KeyPressedEvent>(Event.key.keysym.sym);
+			GameEventBus->EmitEvent<KeyPressedEvent>(Event.key.key);
 			break;
 		}
 	}
@@ -175,7 +179,7 @@ void Game::Update()
 	// If we are too fast, wait until the next frame
 	if (CAP_FRAMES)
 	{
-		uint16_t TimeToWait = MILISECONDS_PER_FRAME - (SDL_GetTicks64() - MillisecondsPreviousFrame);
+		uint16_t TimeToWait = MILISECONDS_PER_FRAME - (SDL_GetTicks() - MillisecondsPreviousFrame);
 		if (TimeToWait > 0 && TimeToWait <= MILISECONDS_PER_FRAME)
 		{
 			SDL_Delay(TimeToWait);
@@ -183,9 +187,9 @@ void Game::Update()
 	}
 
 	// TODO: replace double with std::float64_t when gcc has stable support for C++23
-	double DeltaTime = (SDL_GetTicks64() - MillisecondsPreviousFrame) / 1000.0;
+	double DeltaTime = (SDL_GetTicks() - MillisecondsPreviousFrame) / 1000.0;
 
-	MillisecondsPreviousFrame = SDL_GetTicks64();
+	MillisecondsPreviousFrame = SDL_GetTicks();
 
 	// Reset all event handlers for the current frame
 	GameEventBus->Reset();
@@ -206,7 +210,7 @@ void Game::Update()
 	GameRegistry->GetSystem<CollisionSystem>().Update(GameEventBus);
 	GameRegistry->GetSystem<CameraFollowSystem>().Update(Camera);
 	GameRegistry->GetSystem<ProjectileLifecycleSystem>().Update();
-	GameRegistry->GetSystem<ScriptSystem>().Update(DeltaTime, SDL_GetTicks64());
+	GameRegistry->GetSystem<ScriptSystem>().Update(DeltaTime, SDL_GetTicks());
 
 }
 
@@ -240,8 +244,8 @@ void Game::Run()
 }
 
 void Game::Destroy() {
-	ImGui_ImplSDLRenderer2_Shutdown();
-	ImGui_ImplSDL2_Shutdown();
+	ImGui_ImplSDLRenderer3_Shutdown();
+	ImGui_ImplSDL3_Shutdown();
 	ImGui::DestroyContext();
 
 	if (Renderer)

@@ -9,19 +9,19 @@
 #include "../Components/HealthComponent.hpp"
 #include <glm/glm.hpp>
 #include <imgui/imgui.h>
-#include <imgui/imgui_impl_sdl2.h>
-#include <imgui/imgui_impl_sdlrenderer2.h>
-#include <SDL2/SDL.h>
+#include <imgui/imgui_impl_sdl3.h>
+#include <imgui/imgui_impl_sdlrenderer3.h>
+#include <SDL3/SDL.h>
 
 class RenderDebugGUISystem : public System
 {
 public:
 	RenderDebugGUISystem() = default;
 
-	void Update(SDL_Renderer* Renderer, const std::unique_ptr<Registry>& Registry, const SDL_Rect& Camera)
+	void Update(SDL_Renderer* Renderer, const std::unique_ptr<Registry>& Registry, const SDL_FRect& Camera)
 	{
-		ImGui_ImplSDLRenderer2_NewFrame();
-		ImGui_ImplSDL2_NewFrame();
+		ImGui_ImplSDLRenderer3_NewFrame();
+		ImGui_ImplSDL3_NewFrame();
 		ImGui::NewFrame();
 
 		//ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_AlwaysAutoResize;
@@ -123,6 +123,6 @@ public:
 		ImGui::End();
 
 		ImGui::Render();
-		ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), Renderer);
+		ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), Renderer);
 	}
 };

@@ -1,6 +1,6 @@
 #include "AssetManager.hpp"
 
-#include <SDL2/SDL_image.h>
+#include <SDL3_image/SDL_image.h>
 #include <spdlog/spdlog.h>
 
 
@@ -34,7 +34,7 @@ void AssetManager::AddTexture(SDL_Renderer* Renderer, const std::string &AssetID
 {
 	SDL_Surface* Surface = IMG_Load(FilePath.c_str());
 	SDL_Texture* Texture = SDL_CreateTextureFromSurface(Renderer, Surface);
-	SDL_FreeSurface(Surface);
+	SDL_DestroySurface(Surface);
 
 	// Add texture to the map
 	Textures.emplace(AssetID, Texture);
@@ -57,7 +57,7 @@ SDL_Texture *AssetManager::GetTexture(const std::string &AssetID) const
 
 void AssetManager::AddFont(const std::string &AssetID, const std::string &FilePath, uint8_t FontSize)
 {
-	Fonts.emplace(AssetID, TTF_OpenFont(FilePath.c_str(), FontSize));
+	Fonts.emplace(AssetID, TTF_OpenFont(FilePath.c_str(), static_cast<float>(FontSize)));
 
 	spdlog::info("Font with AssetID: {} added", AssetID);
 }

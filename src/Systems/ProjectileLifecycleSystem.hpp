@@ -2,7 +2,7 @@
 
 #include "../ECS/ECS.hpp"
 #include "../Components/ProjectileComponent.hpp"
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 
 class ProjectileLifecycleSystem : public System
 {
