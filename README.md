@@ -34,7 +34,7 @@ Bundled in the repository:
 To get started with RLEngine, clone the repository:
 
 ```sh
-git clone https://github.com/yourusername/RLEngine.git
+git clone https://github.com/ljfp/RLEngine.git
 cd RLEngine
 ```
 
@@ -43,17 +43,24 @@ cd RLEngine
 ### Prerequisites
 
 - [CMake](https://cmake.org/) 3.24 or newer
-- A C++ compiler with C++20 support (MSVC recommended on Windows, GCC on Linux)
+- A C++ compiler with C++20 support
 - [Git](https://git-scm.com/) (required for FetchContent to clone SDL3 dependencies)
+- On Windows: Visual Studio 2026 with the Desktop development with C++ workload
+- On Linux/macOS: GCC or Clang and [Ninja](https://ninja-build.org/)
 
-On **Windows**, run commands from a [Developer Command Prompt for Visual Studio](https://learn.microsoft.com/en-us/visualstudio/ide/reference/command-prompt-powershell) or use the CMake preset which auto-selects the Visual Studio generator.
+On **Windows**, run commands from a [Developer Command Prompt for Visual Studio](https://learn.microsoft.com/en-us/visualstudio/ide/reference/command-prompt-powershell), or open the folder in VS Code with the CMake Tools extension installed. The Windows preset currently uses the `Visual Studio 18 2026` generator.
+
 
 ### Build Instructions
 
-Configure the project using CMake presets:
+Configure the project using the preset for your host platform:
 
 ```sh
+# Windows
 cmake --preset default
+
+# Linux/macOS
+cmake --preset linux
 ```
 
 > **Note:** The first configure takes several minutes as CMake downloads and builds SDL3, SDL3_image, and SDL3_ttf from source.
@@ -67,15 +74,22 @@ cmake --build build
 By default the project builds in **Debug** mode. To build an optimized release:
 
 ```sh
+# Windows / Visual Studio generator
 cmake --build build --config Release
 ```
 
+With single-configuration generators such as Ninja, configure with `-DCMAKE_BUILD_TYPE=Release` before building.
+
 ## Running
 
-After building, the executable and required DLLs are placed in the `bin/` directory:
+After building, the executable is placed in the `bin/` directory. On Windows, required runtime DLLs are copied there too. Run the executable from the repository root so relative asset paths such as `./assets/...` resolve correctly:
 
 ```sh
+# Windows
 .\bin\RLEngine.exe
+
+# Linux/macOS
+./bin/RLEngine
 ```
 
 ## Contributing
