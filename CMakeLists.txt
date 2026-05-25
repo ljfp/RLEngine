@@ -41,12 +41,20 @@ FetchContent_Declare(
 	GIT_PROGRESS TRUE
 )
 
+FetchContent_Declare(
+	flecs
+	GIT_REPOSITORY https://github.com/SanderMertens/flecs.git
+	GIT_TAG v4.1.0
+	GIT_SHALLOW TRUE
+	GIT_PROGRESS TRUE
+)
+
 # Disable optional SDL3_image codecs that require extra tools (NASM for dav1d)
 set(SDLIMAGE_AVIF OFF CACHE BOOL "" FORCE)
 set(SDLIMAGE_JXL OFF CACHE BOOL "" FORCE)
 set(SDLIMAGE_WEBP OFF CACHE BOOL "" FORCE)
 
-FetchContent_MakeAvailable(SDL3 SDL3_image SDL3_ttf)
+FetchContent_MakeAvailable(SDL3 SDL3_image SDL3_ttf flecs)
 
 # --- Source files ---
 file(GLOB_RECURSE SOURCES
@@ -62,6 +70,7 @@ add_executable(RLEngine ${SOURCES})
 target_include_directories(RLEngine PRIVATE
 	"${CMAKE_SOURCE_DIR}/third_party"
 	"${CMAKE_SOURCE_DIR}/third_party/lua"
+	"${flecs_SOURCE_DIR}/include"
 )
 
 set_target_properties(RLEngine PROPERTIES
@@ -76,6 +85,7 @@ target_link_libraries(RLEngine PRIVATE
 	SDL3::SDL3
 	SDL3_image::SDL3_image
 	SDL3_ttf::SDL3_ttf
+	flecs::flecs_static
 	"${CMAKE_SOURCE_DIR}/lib/lua54.lib"
 )
 

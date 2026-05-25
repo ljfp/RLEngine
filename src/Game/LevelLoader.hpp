@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../AssetManager/AssetManager.hpp"
-#include "../ECS/ECS.hpp"
+#include <flecs.h>
 
 #include <cstdint>
 #include <memory>
@@ -14,6 +14,6 @@ public:
 	LevelLoader();
 	~LevelLoader();
 
-	void LoadLevel(sol::state& LuaState, const std::unique_ptr<Registry>& Registry, const std::unique_ptr<AssetManager>& AssetManager, SDL_Renderer* Renderer, uint8_t LevelNumber);
+	void LoadLevel(sol::state& LuaState, flecs::world& World, const std::unique_ptr<AssetManager>& AssetManager, SDL_Renderer* Renderer, uint8_t LevelNumber);
 private:
 };

@@ -1,10 +1,12 @@
 #pragma once
 
-#include "../ECS/ECS.hpp"
 #include "../AssetManager/AssetManager.hpp"
-#include "../EventBus/EventBus.hpp"
+#include "../ECS/FlecsGameWorld.hpp"
 #include <SDL3/SDL.h>
+#include <flecs.h>
 #include <sol/sol.hpp>
+
+#include <memory>
 
 constexpr uint16_t FPS = 60;
 constexpr uint16_t MILISECONDS_PER_FRAME = 1000 / 60;
@@ -21,7 +23,6 @@ public:
 	void Setup();
 	void ProcessInput();
 	void Update();
-	void Render();
 	void Destroy();
 
 	static uint16_t WindowWidth;
@@ -39,7 +40,6 @@ private:
 
 	sol::state LuaState;
 
-	std::unique_ptr<Registry> GameRegistry;
 	std::unique_ptr<AssetManager> GameAssetManager;
-	std::unique_ptr<EventBus> GameEventBus;
+	flecs::world GameWorld;
 };

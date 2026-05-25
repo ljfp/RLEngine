@@ -11,13 +11,11 @@
 #include "../Components/SpriteComponent.hpp"
 #include "../Components/TextLabelComponent.hpp"
 #include "../Components/TransformComponent.hpp"
-#include "../ECS/ECS.hpp"
+#include "../ECS/FlecsGameWorld.hpp"
 
-#include <iostream>
 #include <fstream>
 #include <glm/glm.hpp>
 #include <spdlog/spdlog.h>
-#include <sol/sol.hpp>
 #include <string>
 
 LevelLoader::LevelLoader()
@@ -30,9 +28,8 @@ LevelLoader::~LevelLoader()
 	spdlog::info("LevelLoader destroyed");
 }
 
-void LevelLoader::LoadLevel(sol::state& LuaState, const std::unique_ptr<Registry>& Registry, const std::unique_ptr<AssetManager>& AssetManager, SDL_Renderer* Renderer, uint8_t LevelNumber)
+void LevelLoader::LoadLevel(sol::state& LuaState, flecs::world& World, const std::unique_ptr<AssetManager>& AssetManager, SDL_Renderer* Renderer, uint8_t LevelNumber)
 {
-	// We should check the syntax of the script before executing it.
 	sol::load_result Script = LuaState.load_file("./assets/scripts/Level" + std::to_string(LevelNumber) + ".lua");
 	if (!Script.valid())
 	{
@@ -42,23 +39,21 @@ void LevelLoader::LoadLevel(sol::state& LuaState, const std::unique_ptr<Registry
 		return;
 	}
 
-	// Load the entities and components from assets/scripts/Level<n>.lua
 	LuaState.script_file("./assets/scripts/Level" + std::to_string(LevelNumber) + ".lua");
 	spdlog::info("Level {} loaded", LevelNumber);
 
-	// Get the Level table from the script
 	sol::table Level = LuaState["Level"];
 
-	// Read the level assets from the table
 	sol::table Assets = Level["assets"];
 	uint16_t i = 0;
-	while(true)
+	while (true)
 	{
 		sol::optional<sol::table> HasAsset = Assets[i];
 		if (HasAsset == sol::nullopt)
 		{
 			break;
 		}
+
 		sol::table Asset = Assets[i];
 		std::string AssetType = Asset["type"];
 		if (AssetType == "texture")
@@ -74,7 +69,6 @@ void LevelLoader::LoadLevel(sol::state& LuaState, const std::unique_ptr<Registry
 		i++;
 	}
 
-	// Read the level tilemap information from the table
 	sol::table Tilemap = Level["tilemap"];
 	std::string MapFilePath = Tilemap["map_file"];
 	std::string MapTextureAssetID = Tilemap["texture_asset_id"];
@@ -82,34 +76,34 @@ void LevelLoader::LoadLevel(sol::state& LuaState, const std::unique_ptr<Registry
 	uint16_t MapNumColumns = Tilemap["num_cols"];
 	uint16_t TileSize = Tilemap["tile_size"];
 	double MapScale = Tilemap["scale"];
+
 	std::fstream TilemapFile;
-	std::cout << "PATH HERE:" << MapFilePath << std::endl;
 	TilemapFile.open(MapFilePath, std::ios::in);
 	for (uint16_t y = 0; y < MapNumRows; y++)
 	{
 		for (uint16_t x = 0; x < MapNumColumns; x++)
 		{
 			char ch;
-			// Read the first digit
 			TilemapFile.get(ch);
-			uint16_t SourceRectangleY = std::atoi(&ch) * TileSize;
-			// Read the second digit
+            //TODO: This only works for single digit tile indices. Need to update the tilemap file format to support multiple digit indices and update this code to parse them correctly.
+			uint16_t SourceRectangleY = static_cast<uint16_t>((ch - '0') * TileSize);
 			TilemapFile.get(ch);
-			uint16_t SourceRectangleX = std::atoi(&ch) * TileSize;
-			// Skip the comma
+            //TODO: This only works for single digit tile indices. Need to update the tilemap file format to support multiple digit indices and update this code to parse them correctly.
+			uint16_t SourceRectangleX = static_cast<uint16_t>((ch - '0') * TileSize);
 			TilemapFile.ignore();
 
-			Entity Tile = Registry->CreateEntity();
-			Tile.Group("Tiles");
-			Tile.AddComponent<TransformComponent>(glm::vec2(x * (MapScale * TileSize), y * (MapScale * TileSize)), glm::vec2(MapScale, MapScale), 0.0);
-			Tile.AddComponent<SpriteComponent>(MapTextureAssetID, TileSize, TileSize, 0, false, SourceRectangleX, SourceRectangleY);
+			flecs::entity Tile = World.entity();
+			ApplyGameplayTag(World, Tile, "Tiles");
+			Tile.set<TransformComponent>(TransformComponent(glm::vec2(x * (MapScale * TileSize), y * (MapScale * TileSize)), glm::vec2(MapScale, MapScale), 0.0));
+			Tile.set<SpriteComponent>(SpriteComponent(MapTextureAssetID, TileSize, TileSize, 0, false, SourceRectangleX, SourceRectangleY));
 		}
 	}
 	TilemapFile.close();
-	Game::MapWidth = MapNumColumns * TileSize * MapScale;
-	Game::MapHeight = MapNumRows * TileSize * MapScale;
 
-	// Read the level entities and components from the table
+	Game::MapWidth = static_cast<uint16_t>(MapNumColumns * TileSize * MapScale);
+	Game::MapHeight = static_cast<uint16_t>(MapNumRows * TileSize * MapScale);
+	World.set<MapBounds>(MapBounds{ Game::MapWidth, Game::MapHeight });
+
 	sol::table Entities = Level["entities"];
 	i = 0;
 	while (true)
@@ -121,199 +115,146 @@ void LevelLoader::LoadLevel(sol::state& LuaState, const std::unique_ptr<Registry
 		}
 
 		sol::table AnEntity = Entities[i];
-		Entity NewEntity = Registry->CreateEntity();
+		flecs::entity NewEntity = World.entity();
 
-		// Tag entity if it has a tag.
 		sol::optional<std::string> Tag = AnEntity["tag"];
 		if (Tag != sol::nullopt)
 		{
-			NewEntity.Tag(AnEntity["tag"]);
+			ApplyGameplayTag(World, NewEntity, *Tag);
 		}
 
-		// Group entity if it belongs to a group.
 		sol::optional<std::string> Group = AnEntity["group"];
 		if (Group != sol::nullopt)
 		{
-			NewEntity.Group(AnEntity["group"]);
+			ApplyGameplayTag(World, NewEntity, *Group);
 		}
 
-		// Add components to the entity
 		sol::optional<sol::table> HasComponents = AnEntity["components"];
 		if (HasComponents != sol::nullopt)
 		{
-			// Check for TransformComponent
-			sol::optional<sol::table> Transform = AnEntity["components"]["transform"];
+			sol::table Components = AnEntity["components"];
+
+			sol::optional<sol::table> Transform = Components["transform"];
 			if (Transform != sol::nullopt)
 			{
-				NewEntity.AddComponent<TransformComponent>
+				NewEntity.set<TransformComponent>(TransformComponent
 				(
-					glm::vec2
-					(
-						AnEntity["components"]["transform"]["position"]["x"],
-						AnEntity["components"]["transform"]["position"]["y"]
-					),
-					glm::vec2
-					(
-						AnEntity["components"]["transform"]["scale"]["x"].get_or(1.0),
-						AnEntity["components"]["transform"]["scale"]["y"].get_or(1.0)
-					),
-					static_cast<double>(AnEntity["components"]["transform"]["rotation"].get_or(0.0))
-				);
+					glm::vec2(Components["transform"]["position"]["x"], Components["transform"]["position"]["y"]),
+					glm::vec2(Components["transform"]["scale"]["x"].get_or(1.0), Components["transform"]["scale"]["y"].get_or(1.0)),
+					static_cast<double>(Components["transform"]["rotation"].get_or(0.0))
+				));
 			}
 
-			// Check for RigidBodyComponent
-			sol::optional<sol::table> RigidBody = AnEntity["components"]["rigidbody"];
+			sol::optional<sol::table> RigidBody = Components["rigidbody"];
 			if (RigidBody != sol::nullopt)
 			{
-				NewEntity.AddComponent<RigidBodyComponent>
+				NewEntity.set<RigidBodyComponent>(RigidBodyComponent
 				(
-					glm::vec2
-					(
-						AnEntity["components"]["rigidbody"]["velocity"]["x"].get_or(0.0),
-						AnEntity["components"]["rigidbody"]["velocity"]["y"].get_or(0.0)
-					)
-				);
+					glm::vec2(Components["rigidbody"]["velocity"]["x"].get_or(0.0), Components["rigidbody"]["velocity"]["y"].get_or(0.0))
+				));
 			}
 
-			// Check for SpriteComponent
-			sol::optional<sol::table> Sprite = AnEntity["components"]["sprite"];
+			sol::optional<sol::table> Sprite = Components["sprite"];
 			if (Sprite != sol::nullopt)
 			{
-				NewEntity.AddComponent<SpriteComponent>
+				NewEntity.set<SpriteComponent>(SpriteComponent
 				(
-					AnEntity["components"]["sprite"]["texture_asset_id"],
-					AnEntity["components"]["sprite"]["width"],
-					AnEntity["components"]["sprite"]["height"],
-					AnEntity["components"]["sprite"]["z_index"].get_or(1),
-					AnEntity["components"]["sprite"]["fixed"].get_or(false),
-					AnEntity["components"]["sprite"]["src_rect_x"].get_or(0),
-					AnEntity["components"]["sprite"]["src_rect_y"].get_or(0)
-				);
+					Components["sprite"]["texture_asset_id"],
+					Components["sprite"]["width"],
+					Components["sprite"]["height"],
+					Components["sprite"]["z_index"].get_or(1),
+					Components["sprite"]["fixed"].get_or(false),
+					Components["sprite"]["src_rect_x"].get_or(0),
+					Components["sprite"]["src_rect_y"].get_or(0)
+				));
 			}
 
-			// Check for AnimationComponent
-			sol::optional<sol::table> Animation = AnEntity["components"]["animation"];
+			sol::optional<sol::table> Animation = Components["animation"];
 			if (Animation != sol::nullopt)
 			{
-				NewEntity.AddComponent<AnimationComponent>
+				NewEntity.set<AnimationComponent>(AnimationComponent
 				(
-					AnEntity["components"]["animation"]["num_frames"].get_or(1),
-					AnEntity["components"]["animation"]["speed_rate"].get_or(1),
-					AnEntity["components"]["animation"]["loop"].get_or(false)
-				);
+					Components["animation"]["num_frames"].get_or(1),
+					Components["animation"]["speed_rate"].get_or(1),
+					Components["animation"]["loop"].get_or(false)
+				));
 			}
 
-			// Check for BoxColliderComponent
-			sol::optional<sol::table> BoxCollider = AnEntity["components"]["boxcollider"];
+			sol::optional<sol::table> BoxCollider = Components["boxcollider"];
 			if (BoxCollider != sol::nullopt)
 			{
-				NewEntity.AddComponent<BoxColliderComponent>
+				NewEntity.set<BoxColliderComponent>(BoxColliderComponent
 				(
-					AnEntity["components"]["boxcollider"]["width"],
-					AnEntity["components"]["boxcollider"]["height"],
-					glm::vec2
-					(
-						AnEntity["components"]["boxcollider"]["offset"]["x"].get_or(0.0),
-						AnEntity["components"]["boxcollider"]["offset"]["y"].get_or(0.0)
-					)
-				);
+					Components["boxcollider"]["width"],
+					Components["boxcollider"]["height"],
+					glm::vec2(Components["boxcollider"]["offset"]["x"].get_or(0.0), Components["boxcollider"]["offset"]["y"].get_or(0.0))
+				));
 			}
 
-			// Check for HealthComponent
-			sol::optional<sol::table> Health = AnEntity["components"]["health"];
+			sol::optional<sol::table> Health = Components["health"];
 			if (Health != sol::nullopt)
 			{
-				NewEntity.AddComponent<HealthComponent>
-				(
-					static_cast<uint8_t>(AnEntity["components"]["health"]["health_percentage"].get_or(100))
-				);
+				NewEntity.set<HealthComponent>(HealthComponent(static_cast<uint8_t>(Components["health"]["health_percentage"].get_or(100))));
 			}
 
-			// Check for ProjectileEmitterComponent
-			sol::optional<sol::table> ProjectileEmitter = AnEntity["components"]["projectile_emitter"];
+			sol::optional<sol::table> ProjectileEmitter = Components["projectile_emitter"];
 			if (ProjectileEmitter != sol::nullopt)
 			{
-				NewEntity.AddComponent<ProjectileEmitterComponent>
+				NewEntity.set<ProjectileEmitterComponent>(ProjectileEmitterComponent
 				(
-					glm::vec2
-					(
-						AnEntity["components"]["projectile_emitter"]["projectile_velocity"]["x"],
-						AnEntity["components"]["projectile_emitter"]["projectile_velocity"]["y"]
-					),
-					static_cast<uint16_t>(AnEntity["components"]["projectile_emitter"]["repeat_frequency"].get_or(1)) * 1000,
-					static_cast<uint16_t>(AnEntity["components"]["projectile_emitter"]["projectile_duration"].get_or(10)) * 1000,
-					static_cast<uint8_t>(AnEntity["components"]["projectile_emitter"]["hit_percentage_damage"].get_or(10)),
-					AnEntity["components"]["projectile_emitter"]["friendly"].get_or(false)
-				);
+					glm::vec2(Components["projectile_emitter"]["projectile_velocity"]["x"], Components["projectile_emitter"]["projectile_velocity"]["y"]),
+					static_cast<uint16_t>(Components["projectile_emitter"]["repeat_frequency"].get_or(1)) * 1000,
+					static_cast<uint16_t>(Components["projectile_emitter"]["projectile_duration"].get_or(10)) * 1000,
+					static_cast<uint8_t>(Components["projectile_emitter"]["hit_percentage_damage"].get_or(10)),
+					Components["projectile_emitter"]["friendly"].get_or(false)
+				));
 			}
 
-			// Check for CameraFollowComponent
-			sol::optional<sol::table> CameraFollow = AnEntity["components"]["camera_follow"];
+			sol::optional<sol::table> CameraFollow = Components["camera_follow"];
 			if (CameraFollow != sol::nullopt)
 			{
-				NewEntity.AddComponent<CameraFollowComponent>();
+				NewEntity.add<CameraFollowComponent>();
 			}
 
-			// Check for KeyboardControlComponent
-			sol::optional<sol::table> KeyboardControl = AnEntity["components"]["keyboard_controller"];
+			sol::optional<sol::table> KeyboardControl = Components["keyboard_controller"];
 			if (KeyboardControl != sol::nullopt)
 			{
-				NewEntity.AddComponent<KeyboardControlComponent>
+				NewEntity.set<KeyboardControlComponent>(KeyboardControlComponent
 				(
-					glm::vec2
-					(
-						AnEntity["components"]["keyboard_controller"]["up_velocity"]["x"].get_or(0.0),
-						AnEntity["components"]["keyboard_controller"]["up_velocity"]["y"].get_or(0.0)
-					),
-					glm::vec2
-					(
-						AnEntity["components"]["keyboard_controller"]["down_velocity"]["x"].get_or(0.0),
-						AnEntity["components"]["keyboard_controller"]["down_velocity"]["y"].get_or(0.0)
-					),
-					glm::vec2
-					(
-						AnEntity["components"]["keyboard_controller"]["left_velocity"]["x"].get_or(0.0),
-						AnEntity["components"]["keyboard_controller"]["left_velocity"]["y"].get_or(0.0)
-					),
-					glm::vec2
-					(
-						AnEntity["components"]["keyboard_controller"]["right_velocity"]["x"].get_or(0.0),
-						AnEntity["components"]["keyboard_controller"]["right_velocity"]["y"].get_or(0.0)
-					)
-				);
+					glm::vec2(Components["keyboard_controller"]["up_velocity"]["x"].get_or(0.0), Components["keyboard_controller"]["up_velocity"]["y"].get_or(0.0)),
+					glm::vec2(Components["keyboard_controller"]["down_velocity"]["x"].get_or(0.0), Components["keyboard_controller"]["down_velocity"]["y"].get_or(0.0)),
+					glm::vec2(Components["keyboard_controller"]["left_velocity"]["x"].get_or(0.0), Components["keyboard_controller"]["left_velocity"]["y"].get_or(0.0)),
+					glm::vec2(Components["keyboard_controller"]["right_velocity"]["x"].get_or(0.0), Components["keyboard_controller"]["right_velocity"]["y"].get_or(0.0))
+				));
 			}
 
-			// Check for TextLabelComponent
-			sol::optional<sol::table> TextLabel = AnEntity["components"]["text_label"];
+			sol::optional<sol::table> TextLabel = Components["text_label"];
 			if (TextLabel != sol::nullopt)
 			{
-				NewEntity.AddComponent<TextLabelComponent>
+				NewEntity.set<TextLabelComponent>(TextLabelComponent
 				(
-					glm::vec2
-					(
-						AnEntity["components"]["text_label"]["position"]["x"],
-						AnEntity["components"]["text_label"]["position"]["y"]
-					),
-					AnEntity["components"]["text_label"]["text"],
-					AnEntity["components"]["text_label"]["font_id"],
+					glm::vec2(Components["text_label"]["position"]["x"], Components["text_label"]["position"]["y"]),
+					Components["text_label"]["text"],
+					Components["text_label"]["font_id"],
 					SDL_Color
 					{
-						AnEntity["components"]["text_label"]["color"]["r"],
-						AnEntity["components"]["text_label"]["color"]["g"],
-						AnEntity["components"]["text_label"]["color"]["b"]
+						Components["text_label"]["color"]["r"],
+						Components["text_label"]["color"]["g"],
+						Components["text_label"]["color"]["b"],
+						255
 					},
-					AnEntity["components"]["text_label"]["fixed"].get_or(false)
-				);
+					Components["text_label"]["fixed"].get_or(false)
+				));
 			}
 
-			// Check for Script
-			sol::optional<sol::table> Script = AnEntity["components"]["on_update_script"];
+			sol::optional<sol::table> Script = Components["on_update_script"];
 			if (Script != sol::nullopt)
 			{
-				sol::function Funct = AnEntity["components"]["on_update_script"][0];
-				NewEntity.AddComponent<ScriptComponent>(Funct);
+				sol::function Funct = Components["on_update_script"][0];
+				NewEntity.set<ScriptComponent>(ScriptComponent(Funct));
 			}
 		}
+
 		i++;
 	}
 }

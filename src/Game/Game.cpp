@@ -1,20 +1,5 @@
 #include "Game.hpp"
 #include "LevelLoader.hpp"
-#include "../ECS/ECS.hpp"
-#include "../Systems/AnimationSystem.hpp"
-#include "../Systems/CameraFollowSystem.hpp"
-#include "../Systems/CollisionSystem.hpp"
-#include "../Systems/DamageSystem.hpp"
-#include "../Systems/KeyboardControlSystem.hpp"
-#include "../Systems/MovementSystem.hpp"
-#include "../Systems/RenderColliderSystem.hpp"
-#include "../Systems/RenderDebugGUISystem.hpp"
-#include "../Systems/RenderHealthBarSystem.hpp"
-#include "../Systems/RenderTextSystem.hpp"
-#include "../Systems/RenderSystem.hpp"
-#include "../Systems/ProjectileEmitterSystem.hpp"
-#include "../Systems/ProjectileLifecycleSystem.hpp"
-#include "../Systems/ScriptSystem.hpp"
 
 #include <SDL3_image/SDL_image.h>
 #include <spdlog/spdlog.h>
@@ -32,12 +17,9 @@ uint16_t Game::MapWidth;
 uint16_t Game::MapHeight;
 
 Game::Game()
+	: Window(nullptr), Renderer(nullptr), Camera{ 0.0f, 0.0f, 0.0f, 0.0f }, IsRunning(false), IsDebug(false)
 {
-	IsRunning = false;
-	IsDebug = false;
-	GameRegistry = std::make_unique<Registry>();
 	GameAssetManager = std::make_unique<AssetManager>();
-	GameEventBus = std::make_unique<EventBus>();
 	spdlog::info("Game is running.");
 }
 
@@ -113,6 +95,9 @@ void Game::Initialize()
 
 void Game::ProcessInput()
 {
+	auto& Input = GameWorld.get_mut<InputState>();
+	Input.Clear();
+
 	SDL_Event Event;
 	while (SDL_PollEvent(&Event))
 	{
@@ -131,18 +116,18 @@ void Game::ProcessInput()
 		switch (Event.type)
 		{
 		case SDL_EVENT_QUIT:
-			IsRunning = false;
+			Input.QuitRequested = true;
 			break;
 		case SDL_EVENT_KEY_DOWN:
+			Input.PressedKeys.push_back(Event.key.key);
 			if (Event.key.key == SDLK_ESCAPE)
 			{
-				IsRunning = false;
+				Input.QuitRequested = true;
 			}
 			if (Event.key.key == SDLK_D)
 			{
-				IsDebug = !IsDebug;
+				Input.ToggleDebugRequested = true;
 			}
-			GameEventBus->EmitEvent<KeyPressedEvent>(Event.key.key);
 			break;
 		}
 	}
@@ -150,28 +135,19 @@ void Game::ProcessInput()
 
 void Game::Setup()
 {
-	// Add the systems that need to be processed in our game
-	GameRegistry->AddSystem<MovementSystem>();
-	GameRegistry->AddSystem<RenderSystem>();
-	GameRegistry->AddSystem<AnimationSystem>();
-	GameRegistry->AddSystem<CollisionSystem>();
-	GameRegistry->AddSystem<RenderColliderSystem>();
-	GameRegistry->AddSystem<DamageSystem>();
-	GameRegistry->AddSystem<KeyboardControlSystem>();
-	GameRegistry->AddSystem<CameraFollowSystem>();
-	GameRegistry->AddSystem<ProjectileEmitterSystem>();
-	GameRegistry->AddSystem<ProjectileLifecycleSystem>();
-	GameRegistry->AddSystem<RenderTextSystem>();
-	GameRegistry->AddSystem<RenderHealthBarSystem>();
-	GameRegistry->AddSystem<RenderDebugGUISystem>();
-	GameRegistry->AddSystem<ScriptSystem>();
+	LuaState.open_libraries(sol::lib::base, sol::lib::math, sol::lib::os);
 
-	// Create the bindings between C++ and Lua
-	GameRegistry->GetSystem<ScriptSystem>().CreateLuaBindings(LuaState);
+	RegisterFlecsGameWorld(GameWorld);
+	GameWorld.set<GameContext>(GameContext{ Renderer, GameAssetManager.get(), &Camera, &IsDebug, &IsRunning });
+	GameWorld.set<InputState>(InputState{});
+	GameWorld.set<MapBounds>(MapBounds{});
+	GameWorld.set<CollisionState>(CollisionState{});
+
+	RegisterScriptBindings(GameWorld, LuaState);
+	RegisterFlecsSystems(GameWorld);
 
 	LevelLoader Loader;
-	LuaState.open_libraries(sol::lib::base, sol::lib::math, sol::lib::os);
-	Loader.LoadLevel(LuaState, GameRegistry, GameAssetManager, Renderer, 2);
+	Loader.LoadLevel(LuaState, GameWorld, GameAssetManager, Renderer, 2);
 }
 
 void Game::Update()
@@ -191,45 +167,9 @@ void Game::Update()
 
 	MillisecondsPreviousFrame = SDL_GetTicks();
 
-	// Reset all event handlers for the current frame
-	GameEventBus->Reset();
-
-	// Perform the subscription of the events for all systems
-	GameRegistry->GetSystem<DamageSystem>().SubscribeToEvents(GameEventBus);
-	GameRegistry->GetSystem<KeyboardControlSystem>().SubscribeToEvents(GameEventBus);
-	GameRegistry->GetSystem<MovementSystem>().SubscribeToEvents(GameEventBus);
-	GameRegistry->GetSystem<ProjectileEmitterSystem>().SubscribeToEvents(GameEventBus);
-
-	// Update the registry to process the entities that are waiting to be created/deleted
-	GameRegistry->Update();
-
-	// Invoke all systems that need to update
-	GameRegistry->GetSystem<MovementSystem>().Update(DeltaTime);
-	GameRegistry->GetSystem<ProjectileEmitterSystem>().Update(GameRegistry);
-	GameRegistry->GetSystem<AnimationSystem>().Update();
-	GameRegistry->GetSystem<CollisionSystem>().Update(GameEventBus);
-	GameRegistry->GetSystem<CameraFollowSystem>().Update(Camera);
-	GameRegistry->GetSystem<ProjectileLifecycleSystem>().Update();
-	GameRegistry->GetSystem<ScriptSystem>().Update(DeltaTime, SDL_GetTicks());
-
-}
-
-void Game::Render()
-{
-	SDL_SetRenderDrawColor(Renderer, 21, 21, 21, 255);
-	SDL_RenderClear(Renderer);
-
-	// Invoke all the systems that need to render
-	GameRegistry->GetSystem<RenderSystem>().Update(Renderer, GameAssetManager, Camera);
-	GameRegistry->GetSystem<RenderTextSystem>().Update(Renderer, GameAssetManager, Camera);
-	GameRegistry->GetSystem<RenderHealthBarSystem>().Update(Renderer, GameAssetManager, Camera);
-	if (IsDebug)
-	{
-		GameRegistry->GetSystem<RenderColliderSystem>().Update(Renderer, Camera);
-		GameRegistry->GetSystem<RenderDebugGUISystem>().Update(Renderer, GameRegistry, Camera);
-	}
-
-	SDL_RenderPresent(Renderer);
+	// This line moves the game forward (one tick) and runs all the systems.
+	const bool WorldShouldContinue = GameWorld.progress(static_cast<float>(DeltaTime));
+	IsRunning = IsRunning && WorldShouldContinue;
 }
 
 void Game::Run()
@@ -239,7 +179,6 @@ void Game::Run()
 	{
 		ProcessInput();
 		Update();
-		Render();
 	}
 }
 
