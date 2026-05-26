@@ -20,7 +20,7 @@ include(FetchContent)
 FetchContent_Declare(
 	SDL3
 	GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-	GIT_TAG release-3.4.4
+	GIT_TAG release-3.4.8
 	GIT_SHALLOW TRUE
 	GIT_PROGRESS TRUE
 )
@@ -28,7 +28,7 @@ FetchContent_Declare(
 FetchContent_Declare(
 	SDL3_image
 	GIT_REPOSITORY https://github.com/libsdl-org/SDL_image.git
-	GIT_TAG release-3.4.2
+	GIT_TAG release-3.4.4
 	GIT_SHALLOW TRUE
 	GIT_PROGRESS TRUE
 )
@@ -44,7 +44,7 @@ FetchContent_Declare(
 FetchContent_Declare(
 	flecs
 	GIT_REPOSITORY https://github.com/SanderMertens/flecs.git
-	GIT_TAG v4.1.0
+	GIT_TAG v4.1.5
 	GIT_SHALLOW TRUE
 	GIT_PROGRESS TRUE
 )
