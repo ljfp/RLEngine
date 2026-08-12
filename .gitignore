@@ -7,7 +7,9 @@ bin/
 build/
 cachegrind.out.*
 CMakeSettings.json
+compile_commands.json
 imgui.ini
+*.code-workspace
 openspec/
 third_party/SDL2/
 third_party/SDL3/
