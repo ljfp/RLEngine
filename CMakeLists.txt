@@ -4,6 +4,11 @@ project(RLEngine)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+# Export compile_commands.json for IntelliSense.
+if(NOT DEFINED CMAKE_EXPORT_COMPILE_COMMANDS)
+	set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+endif()
+
 if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type" FORCE)
 endif()
